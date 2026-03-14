@@ -82,7 +82,9 @@ export async function loadFromFirestore(userId: string): Promise<void> {
 
 let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 let _storageHandler: ((e: StorageEvent) => void) | null = null;
+// tracked so stopAutoSync can clear it
 let _activeUserId: string | null = null;
+export function getActiveUserId() { return _activeUserId; }
 
 /**
  * Debounced push to Firestore.
