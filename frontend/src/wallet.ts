@@ -14,14 +14,14 @@ import {
   avalanche,
   bsc,
   base,
-  hardhat,
+  baseSepolia,
 } from "viem/chains";
 import { getAlchemyUrl } from "./api/alchemy";
 
 const STORAGE_KEY = "omnid-wallet";
 
 export const SUPPORTED_CHAINS: Chain[] = [
-  hardhat,
+  baseSepolia,
   mainnet,
   polygon,
   arbitrum,
@@ -32,14 +32,14 @@ export const SUPPORTED_CHAINS: Chain[] = [
 ];
 
 export const CHAIN_META: Record<number, { name: string; icon: string; color: string }> = {
-  31337: { name: "OmnID Local", icon: "LOCAL", color: "bg-emerald-600" },
-  1:     { name: "Ethereum",  icon: "ETH",  color: "bg-indigo-600" },
-  137:   { name: "Polygon",   icon: "POL",  color: "bg-purple-600" },
-  42161: { name: "Arbitrum",  icon: "ARB",  color: "bg-blue-500" },
-  10:    { name: "Optimism",  icon: "OP",   color: "bg-red-600" },
-  43114: { name: "Avalanche", icon: "AVAX", color: "bg-red-500" },
-  56:    { name: "BNB Chain", icon: "BNB",  color: "bg-yellow-500" },
-  8453:  { name: "Base",      icon: "BASE", color: "bg-blue-600" },
+  84532: { name: "Base Sepolia", icon: "BS",   color: "bg-blue-600" },
+  1:     { name: "Ethereum",     icon: "ETH",  color: "bg-indigo-600" },
+  137:   { name: "Polygon",      icon: "POL",  color: "bg-purple-600" },
+  42161: { name: "Arbitrum",     icon: "ARB",  color: "bg-blue-500" },
+  10:    { name: "Optimism",     icon: "OP",   color: "bg-red-600" },
+  43114: { name: "Avalanche",    icon: "AVAX", color: "bg-red-500" },
+  56:    { name: "BNB Chain",    icon: "BNB",  color: "bg-yellow-500" },
+  8453:  { name: "Base",         icon: "BASE", color: "bg-blue-600" },
 };
 
 export function hasWallet(): boolean {
@@ -73,8 +73,8 @@ export function getAddress(): `0x${string}` | null {
 }
 
 function getTransport(chain: Chain) {
-  // Hardhat always uses local RPC
-  if (chain.id === 31337) return http("http://127.0.0.1:8545");
+  // Base Sepolia uses public RPC
+  if (chain.id === 84532) return http("https://sepolia.base.org");
   // Use Alchemy if configured for this chain, otherwise default public RPC
   const alchemyUrl = getAlchemyUrl(chain.id);
   return alchemyUrl ? http(alchemyUrl) : http();

@@ -8,12 +8,12 @@ import {
   bsc,
   base,
   baseSepolia,
-  hardhat,
 } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
 export const config = createConfig({
   chains: [
+    baseSepolia,
     mainnet,
     polygon,
     arbitrum,
@@ -21,8 +21,6 @@ export const config = createConfig({
     avalanche,
     bsc,
     base,
-    baseSepolia,
-    hardhat,
   ],
   connectors: [injected()],
   transports: {
@@ -34,6 +32,5 @@ export const config = createConfig({
     [bsc.id]: http(),
     [base.id]: http(),
     [baseSepolia.id]: http("https://sepolia.base.org"),
-    [hardhat.id]: http("http://127.0.0.1:8545"),
   },
 });
