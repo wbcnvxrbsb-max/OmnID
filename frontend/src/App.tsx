@@ -1,0 +1,202 @@
+import { useState, useEffect } from "react";
+import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
+import Registration from "./pages/Registration";
+import LinkedAccounts from "./pages/LinkedAccounts";
+import Reputation from "./pages/Reputation";
+import Payments from "./pages/Payments";
+import Course from "./pages/Course";
+import Lesson from "./pages/Lesson";
+import Pro from "./pages/Pro";
+import Trading from "./pages/Trading";
+import Faucet from "./pages/Faucet";
+import PartnerDemo from "./pages/PartnerDemo";
+import Children from "./pages/Children";
+import { hasWallet, getAddress } from "./wallet";
+import { reverseENS } from "./api/ens";
+import { getGoogleUser, clearGoogleUser } from "./google-auth";
+
+function UserButton() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(getGoogleUser());
+
+  useEffect(() => {
+    const check = () => setUser(getGoogleUser());
+    window.addEventListener("storage", check);
+    const interval = setInterval(check, 1000);
+    return () => {
+      window.removeEventListener("storage", check);
+      clearInterval(interval);
+    };
+  }, []);
+
+  if (user) {
+    return (
+      <div className="flex items-center gap-2">
+        {user.picture && (
+          <img src={user.picture} alt="" className="w-7 h-7 rounded-full" referrerPolicy="no-referrer" />
+        )}
+        <span className="text-xs text-omn-text hidden lg:inline">{user.name?.split(" ")[0]}</span>
+        <button
+          onClick={() => {
+            clearGoogleUser();
+            setUser(null);
+            navigate("/register");
+          }}
+          className="text-xs text-omn-text hover:text-omn-danger transition-colors ml-1"
+          title="Sign out"
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <NavLink
+      to="/register"
+      className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors"
+    >
+      Sign In
+    </NavLink>
+  );
+}
+
+function WalletButton() {
+  const navigate = useNavigate();
+  const [address, setAddress] = useState<string | null>(null);
+  const [ensName, setEnsName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hasWallet()) {
+      setAddress(getAddress());
+    }
+    const handleStorage = () => {
+      setAddress(hasWallet() ? getAddress() : null);
+    };
+    window.addEventListener("storage", handleStorage);
+    const interval = setInterval(() => {
+      const current = hasWallet() ? getAddress() : null;
+      if (current !== address) setAddress(current);
+    }, 1000);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(interval);
+    };
+  });
+
+  useEffect(() => {
+    if (!address) {
+      setEnsName(null);
+      return;
+    }
+    let cancelled = false;
+    reverseENS(address).then((name) => {
+      if (!cancelled) setEnsName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
+
+  if (address) {
+    return (
+      <NavLink
+        to="/trading"
+        className="flex items-center gap-2 px-3 py-1.5 bg-omn-surface border border-omn-border rounded-lg hover:border-omn-primary/50 transition-all duration-200"
+      >
+        <span className="w-2 h-2 bg-omn-success rounded-full animate-pulse" />
+        <span className="text-sm font-mono text-omn-accent">
+          {ensName ?? `${address.slice(0, 6)}...${address.slice(-4)}`}
+        </span>
+      </NavLink>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        navigate("/trading");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
+      className="px-3 py-1.5 bg-gradient-to-r from-omn-primary to-omn-accent text-white rounded-lg text-xs font-medium transition-all duration-200 hover:shadow-lg hover:shadow-omn-primary/20"
+    >
+      Create Wallet
+    </button>
+  );
+}
+
+const navItems = [
+  { to: "/", label: "Dashboard" },
+  { to: "/register", label: "Register" },
+  { to: "/accounts", label: "Accounts" },
+  { to: "/reputation", label: "Reputation" },
+  { to: "/payments", label: "Payments" },
+  { to: "/trading", label: "Trading" },
+  { to: "/faucet", label: "Faucet" },
+  { to: "/course", label: "Academy" },
+  { to: "/pro", label: "Pro" },
+  { to: "/children", label: "Children" },
+  { to: "/demo", label: "Demo" },
+];
+
+function App() {
+  return (
+    <div className="min-h-screen bg-omn-bg">
+      <nav className="border-b border-omn-border/60 bg-omn-bg/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
+          <NavLink to="/" className="flex items-center gap-2 group">
+            <div className="w-7 h-7 bg-gradient-to-br from-omn-primary to-omn-accent rounded-lg flex items-center justify-center">
+              <span className="text-xs font-bold text-white">O</span>
+            </div>
+            <span className="text-lg font-bold text-omn-heading group-hover:text-white transition-colors">
+              Omn<span className="bg-gradient-to-r from-omn-primary to-omn-accent bg-clip-text text-transparent">ID</span>
+            </span>
+          </NavLink>
+          <div className="hidden md:flex items-center gap-0.5">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  `px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-omn-primary/15 text-omn-primary-light"
+                      : "text-omn-text hover:text-omn-heading hover:bg-white/[0.04]"
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <WalletButton />
+            <div className="w-px h-5 bg-omn-border" />
+            <UserButton />
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/register" element={<Registration />} />
+          <Route path="/accounts" element={<LinkedAccounts />} />
+          <Route path="/reputation" element={<Reputation />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/trading" element={<Trading />} />
+          <Route path="/faucet" element={<Faucet />} />
+          <Route path="/course" element={<Course />} />
+          <Route path="/course/:lessonId" element={<Lesson />} />
+          <Route path="/pro" element={<Pro />} />
+          <Route path="/children" element={<Children />} />
+          <Route path="/demo" element={<PartnerDemo />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+export default App;
