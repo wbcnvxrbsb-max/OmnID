@@ -84,8 +84,6 @@ export default function Trading() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-  const _selectedFunding = fundingSources.find((f) => f.id === selectedFundingId) ?? null;
-
   // ─── Check for existing wallet on mount ───
   useEffect(() => {
     if (hasWallet()) {
@@ -277,11 +275,6 @@ export default function Trading() {
       ? (Number(quote.toAmountMin) / 10 ** (toToken?.decimals ?? 18)).toFixed(6)
       : null;
   const estimatedGas = quote?.gasCostUSD ? `$${Number(quote.gasCostUSD).toFixed(2)}` : null;
-  const _totalBalanceUsd = Object.entries(balances).reduce((sum, [chainIdStr, b]) => {
-    const nativeSym = CHAIN_NATIVE_SYMBOL[Number(chainIdStr)];
-    const price = nativeSym ? cryptoPrices[nativeSym] : undefined;
-    return sum + (price ? Number(b.formatted) * price.usd : 0);
-  }, 0);
   const hasAnyBalance = Object.values(balances).some((b) => b.balance > 0n);
 
   return (
