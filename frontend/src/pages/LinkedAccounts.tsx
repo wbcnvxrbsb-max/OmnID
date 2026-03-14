@@ -9,7 +9,7 @@ import {
   type TaxonomyPlatform,
 } from "../data/platform-taxonomy";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, type GoogleUser, type DetectedPlatform } from "../google-auth";
+import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, KNOWN_PLATFORMS, type GoogleUser, type DetectedPlatform } from "../google-auth";
 import { isGitHubConfigured, startGitHubOAuth, handleGitHubCallback, simulateGitHubLink, getGitHubUser, clearGitHubUser, type GitHubUser } from "../api/github-auth";
 import { pushActivity } from "../activity";
 
@@ -47,6 +47,17 @@ export default function LinkedAccounts() {
       }
     }
   }, []);
+
+  // Manually claimed platforms
+  const [manualPlatforms, setManualPlatforms] = usePersistedState<DetectedPlatform[]>("manual-platforms", []);
+
+  // Combined detected + manual (deduplicated)
+  const allDetected = [...detectedPlatforms];
+  for (const mp of manualPlatforms) {
+    if (!allDetected.some((d) => d.domain === mp.domain)) {
+      allDetected.push(mp);
+    }
+  }
 
   // Connected platforms (persisted)
   const [connectedProfiles, setConnectedProfiles] = usePersistedState<PlatformProfile[]>("linked-profiles", []);
@@ -340,14 +351,14 @@ export default function LinkedAccounts() {
         </div>
       </div>
 
-      {/* Gmail-detected platforms */}
-      {(scanning || detectedPlatforms.length > 0) && (
+      {/* Detected Platforms */}
+      {(scanning || allDetected.length > 0) && (
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6 mb-8">
           <h2 className="text-lg font-semibold text-omn-heading mb-1">
-            Detected from Gmail
+            Detected Platforms
           </h2>
           <p className="text-xs text-omn-text mb-4">
-            Platforms found in your Gmail inbox. Connect them to import your data.
+            Platforms detected from your Gmail or manually added. Connect them to import your data.
           </p>
           {scanning && (
             <div className="flex items-center gap-2 mb-3">
@@ -356,8 +367,9 @@ export default function LinkedAccounts() {
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {detectedPlatforms.map((p) => {
+            {allDetected.map((p) => {
               const alreadyConnected = connectedIds.has(p.name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+              const isManual = manualPlatforms.some((m) => m.domain === p.domain);
               return (
                 <div
                   key={p.domain}
@@ -370,7 +382,7 @@ export default function LinkedAccounts() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-omn-heading truncate">{p.name}</p>
-                    <p className="text-[10px] text-omn-text">{p.category}</p>
+                    <p className="text-[10px] text-omn-text">{p.category}{isManual ? " (manual)" : ""}</p>
                   </div>
                   {alreadyConnected && <span className="text-omn-success text-xs">{"\u2713"}</span>}
                 </div>
@@ -379,6 +391,37 @@ export default function LinkedAccounts() {
           </div>
         </div>
       )}
+
+      {/* Manual Platform Selector */}
+      <div className="bg-omn-surface border border-omn-border rounded-xl p-6 mb-8">
+        <h2 className="text-lg font-semibold text-omn-heading mb-1">
+          I Also Use...
+        </h2>
+        <p className="text-xs text-omn-text mb-4">
+          Select platforms you use. These will be added to your detected platforms.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          {KNOWN_PLATFORMS.filter((p) => !allDetected.some((d) => d.domain === p.domain)).map((p) => (
+            <button
+              key={p.domain}
+              onClick={() => {
+                setManualPlatforms((prev) => [...prev, p]);
+                pushActivity(`Added ${p.name} manually`, p.icon, "bg-omn-primary");
+              }}
+              className="flex items-center gap-2 p-3 rounded-lg border border-omn-border bg-omn-bg hover:border-omn-primary/50 hover:bg-omn-primary/5 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-omn-text bg-omn-bg w-7 h-7 rounded flex items-center justify-center shrink-0 border border-omn-border">
+                {p.icon}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-omn-heading truncate">{p.name}</p>
+                <p className="text-[10px] text-omn-text">{p.category}</p>
+              </div>
+              <span className="text-omn-primary text-sm">+</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Transfer History */}
       {transferHistory.length > 0 && (

@@ -51,7 +51,7 @@ const SCOPES = [
 const PERSON_FIELDS = "names,emailAddresses,photos,birthdays,genders,phoneNumbers,addresses,organizations";
 
 // Platforms to detect from Gmail
-const KNOWN_PLATFORMS: DetectedPlatform[] = [
+export const KNOWN_PLATFORMS: DetectedPlatform[] = [
   // Gig / Rideshare / Delivery
   { name: "Uber", domain: "uber.com", category: "Rideshare", icon: "UB" },
   { name: "Lyft", domain: "lyft.com", category: "Rideshare", icon: "LY" },
