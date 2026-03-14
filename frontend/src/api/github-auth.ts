@@ -1,12 +1,3 @@
-/**
- * GitHub OAuth integration — demo / simulation mode.
- * Set VITE_GITHUB_CLIENT_ID in .env to indicate GitHub OAuth is configured.
- *
- * Since GitHub OAuth requires a backend for the code-exchange step,
- * this module provides a simulation mode that returns a realistic mock
- * GitHub profile and persists it in localStorage.
- */
-
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined;
 
 const STORAGE_KEY = "omnid-github-user";
@@ -28,10 +19,48 @@ export function isGitHubConfigured(): boolean {
   return !!CLIENT_ID;
 }
 
+/** Redirects the browser to GitHub's OAuth authorize URL. */
+export function startGitHubOAuth(): void {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID!,
+    scope: "read:user repo",
+  });
+  window.location.href = `https://github.com/login/oauth/authorize?${params.toString()}`;
+}
+
+/** Sends the OAuth code to the Netlify function, stores the result in localStorage. */
+export async function handleGitHubCallback(code: string): Promise<GitHubUser> {
+  const res = await fetch("/.netlify/functions/github-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "GitHub auth failed");
+  }
+
+  const data = await res.json();
+  const user: GitHubUser = {
+    login: data.user.login,
+    name: data.user.name ?? data.user.login,
+    avatar_url: data.user.avatar_url,
+    bio: data.user.bio ?? "",
+    public_repos: data.user.public_repos ?? 0,
+    followers: data.user.followers ?? 0,
+    following: data.user.following ?? 0,
+    created_at: data.user.created_at,
+    html_url: data.user.html_url,
+  };
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  return user;
+}
+
 /**
  * Simulates linking a GitHub account by generating a realistic mock profile
- * and saving it to localStorage. Use this for demo purposes since real
- * GitHub OAuth requires a backend token exchange.
+ * and saving it to localStorage. Use this as a fallback when OAuth is not configured.
  */
 export function simulateGitHubLink(): GitHubUser {
   const user: GitHubUser = {

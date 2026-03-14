@@ -12,9 +12,8 @@ import { pushActivity } from "../activity";
 import { fetchCryptoPrices, CHAIN_NATIVE_SYMBOL, type CryptoPrice } from "../api/crypto-prices";
 import { getTokenBalances, type TokenBalance } from "../api/token-balances";
 import {
-  getLinkedBanks,
-  unlinkBank,
-  AVAILABLE_INSTITUTIONS,
+  getBankAccounts,
+  clearBankAccounts,
   type PlaidAccount,
 } from "../api/plaid";
 import PlaidLink from "../components/PlaidLink";
@@ -130,7 +129,7 @@ export default function Payments() {
   const [tradeAmount, setTradeAmount] = useState("");
 
   // Plaid bank accounts
-  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>(getLinkedBanks);
+  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>(getBankAccounts);
   const [plaidModalOpen, setPlaidModalOpen] = useState(false);
 
   // Real wallet balances
@@ -281,35 +280,42 @@ export default function Payments() {
   }
 
   function handlePlaidSuccess(accounts: PlaidAccount[]) {
-    setPlaidAccounts(getLinkedBanks());
+    setPlaidAccounts(getBankAccounts());
     // Also add linked bank accounts as funding sources (PaymentMethod entries)
     const bankMethods: PaymentMethod[] = accounts
-      .filter((a) => a.accountType === "checking" || a.accountType === "savings")
+      .filter((a) => a.type === "depository")
       .map((a) => ({
-        id: `plaid-${a.institutionId}-${a.mask}`,
+        id: `plaid-${a.account_id}`,
         type: "apple_pay" as const, // re-use wallet type so it shows up as a funding source
-        label: `${a.institution} ${a.accountType === "checking" ? "Checking" : "Savings"} ****${a.mask}`,
-        balance: a.balance,
-        icon: a.logo,
-        color: a.color,
+        label: `${a.name} ${a.mask ? `****${a.mask}` : ""}`,
+        balance: a.balances.current ?? 0,
+        icon: "BK",
+        color: "bg-emerald-600",
       }));
     setConnectedMethods((prev) => {
-      // Remove any existing plaid entries for this institution, then add new
-      const instId = accounts[0]?.institutionId;
-      const filtered = prev.filter((m) => !m.id.startsWith(`plaid-${instId}`));
+      // Remove any existing plaid entries for these accounts, then add new
+      const newIds = new Set(accounts.map((a) => `plaid-${a.account_id}`));
+      const filtered = prev.filter((m) => !newIds.has(m.id));
       return [...filtered, ...bankMethods];
     });
-    pushActivity(`Linked ${accounts[0]?.institution} via Plaid`, "BK", "bg-emerald-600");
+    const accountName = accounts[0]?.name ?? "Bank";
+    pushActivity(`Linked ${accountName} via Plaid`, "BK", "bg-emerald-600");
   }
 
-  function handleUnlinkBank(institutionId: string) {
-    const institution = AVAILABLE_INSTITUTIONS.find((i) => i.id === institutionId);
-    unlinkBank(institutionId);
-    setPlaidAccounts(getLinkedBanks());
+  function handleUnlinkBank(accountId: string) {
+    const account = plaidAccounts.find((a) => a.account_id === accountId);
+    // Remove from localStorage
+    const remaining = plaidAccounts.filter((a) => a.account_id !== accountId);
+    if (remaining.length === 0) {
+      clearBankAccounts();
+    } else {
+      localStorage.setItem("omnid-bank-accounts", JSON.stringify(remaining));
+    }
+    setPlaidAccounts(remaining);
     // Remove from connected methods
-    setConnectedMethods((prev) => prev.filter((m) => !m.id.startsWith(`plaid-${institutionId}`)));
-    if (institution) {
-      pushActivity(`Unlinked ${institution.name}`, "BK", "bg-red-600");
+    setConnectedMethods((prev) => prev.filter((m) => m.id !== `plaid-${accountId}`));
+    if (account) {
+      pushActivity(`Unlinked ${account.name}`, "BK", "bg-red-600");
     }
   }
 
@@ -406,60 +412,34 @@ export default function Payments() {
 
         {/* Linked accounts */}
         {plaidAccounts.length > 0 && (
-          <div className="space-y-3 mb-4">
-            {/* Group accounts by institution */}
-            {[...new Set(plaidAccounts.map((a) => a.institutionId))].map((instId) => {
-              const instAccounts = plaidAccounts.filter((a) => a.institutionId === instId);
-              const inst = instAccounts[0];
-              return (
-                <div key={instId} className="bg-omn-bg rounded-xl border border-omn-border overflow-hidden">
-                  {/* Institution header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-omn-border">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 ${inst.color} rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                        {inst.logo}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-omn-heading">{inst.institution}</p>
-                        <p className="text-xs text-omn-text">
-                          {instAccounts.length} account{instAccounts.length !== 1 ? "s" : ""} linked
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleUnlinkBank(instId)}
-                      className="text-xs px-3 py-1 bg-omn-surface border border-omn-border rounded-lg text-omn-text hover:text-omn-danger hover:border-omn-danger/50 transition-colors"
-                    >
-                      Unlink
-                    </button>
-                  </div>
-                  {/* Account rows */}
-                  <div className="divide-y divide-omn-border">
-                    {instAccounts.map((acc) => (
-                      <div key={`${acc.institutionId}-${acc.mask}`} className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-7 h-7 bg-omn-surface rounded-lg flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-omn-text capitalize">
-                            {acc.accountType === "checking" ? "CHK" : acc.accountType === "savings" ? "SAV" : "CRD"}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-omn-heading truncate">{acc.accountName}</p>
-                          <p className="text-xs text-omn-text capitalize">
-                            {acc.accountType} {"\u00B7"} ****{acc.mask}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-mono text-omn-accent">
-                            ${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-[10px] text-omn-text">{acc.currency}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+          <div className="space-y-2 mb-4">
+            {plaidAccounts.map((acc) => (
+              <div key={acc.account_id} className="flex items-center gap-3 p-4 bg-omn-bg rounded-xl border border-omn-border">
+                <div className="w-9 h-9 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {acc.type === "depository" ? "BK" : acc.type === "credit" ? "CC" : "AC"}
                 </div>
-              );
-            })}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-omn-heading truncate">{acc.name}</p>
+                  <p className="text-xs text-omn-text capitalize">
+                    {acc.subtype ?? acc.type} {acc.mask ? `\u00B7 ****${acc.mask}` : ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0 mr-2">
+                  <p className="text-sm font-mono text-omn-accent">
+                    {acc.balances.current != null
+                      ? `$${acc.balances.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "--"}
+                  </p>
+                  <p className="text-[10px] text-omn-text">{acc.balances.currency}</p>
+                </div>
+                <button
+                  onClick={() => handleUnlinkBank(acc.account_id)}
+                  className="text-xs px-3 py-1 bg-omn-surface border border-omn-border rounded-lg text-omn-text hover:text-omn-danger hover:border-omn-danger/50 transition-colors shrink-0"
+                >
+                  Unlink
+                </button>
+              </div>
+            ))}
           </div>
         )}
 

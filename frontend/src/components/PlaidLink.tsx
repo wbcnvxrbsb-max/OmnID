@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { usePlaidLink } from "react-plaid-link";
 import {
-  AVAILABLE_INSTITUTIONS,
-  linkBank,
-  getLinkedInstitutionIds,
+  getLinkToken,
+  exchangePublicToken,
   type PlaidAccount,
-  type Institution,
 } from "../api/plaid";
 
 interface PlaidLinkProps {
@@ -13,21 +12,66 @@ interface PlaidLinkProps {
   onSuccess: (accounts: PlaidAccount[]) => void;
 }
 
-type Step = "select" | "connecting" | "success";
+type Step = "loading" | "ready" | "exchanging" | "success" | "error";
 
 export default function PlaidLink({ isOpen, onClose, onSuccess }: PlaidLinkProps) {
-  const [step, setStep] = useState<Step>("select");
-  const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>("loading");
   const [linkedAccounts, setLinkedAccounts] = useState<PlaidAccount[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Reset state when modal opens
+  // Fetch link token when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setStep("select");
-      setSelectedInstitution(null);
-      setLinkedAccounts([]);
-    }
+    if (!isOpen) return;
+    setStep("loading");
+    setLinkToken(null);
+    setLinkedAccounts([]);
+    setErrorMsg("");
+
+    const userId = `omnid-user-${Date.now()}`;
+    getLinkToken(userId)
+      .then((token) => {
+        setLinkToken(token);
+        setStep("ready");
+      })
+      .catch((err) => {
+        setErrorMsg(err.message ?? "Failed to get link token");
+        setStep("error");
+      });
   }, [isOpen]);
+
+  // Handle Plaid Link success callback
+  const handlePlaidSuccess = useCallback(
+    async (publicToken: string) => {
+      setStep("exchanging");
+      try {
+        const { accounts } = await exchangePublicToken(publicToken);
+        setLinkedAccounts(accounts);
+        setStep("success");
+        onSuccess(accounts);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Exchange failed";
+        setErrorMsg(msg);
+        setStep("error");
+      }
+    },
+    [onSuccess]
+  );
+
+  // Handle Plaid Link exit (user closed the modal)
+  const handlePlaidExit = useCallback(() => {
+    // Only close if we haven't already started exchanging
+    if (step !== "exchanging" && step !== "success") {
+      onClose();
+    }
+  }, [step, onClose]);
+
+  // Initialize usePlaidLink
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: handlePlaidSuccess,
+    onExit: handlePlaidExit,
+  });
 
   // Close on Escape key
   const handleKeyDown = useCallback(
@@ -45,29 +89,6 @@ export default function PlaidLink({ isOpen, onClose, onSuccess }: PlaidLinkProps
   }, [handleKeyDown]);
 
   if (!isOpen) return null;
-
-  const alreadyLinkedIds = getLinkedInstitutionIds();
-  const availableInstitutions = AVAILABLE_INSTITUTIONS.filter(
-    (inst) => !alreadyLinkedIds.includes(inst.id)
-  );
-
-  function handleSelectInstitution(institution: Institution) {
-    setSelectedInstitution(institution);
-    setStep("connecting");
-
-    // Simulate 2-second connection delay
-    setTimeout(() => {
-      const accounts = linkBank(institution.id);
-      const justLinked = accounts.filter((a) => a.institutionId === institution.id);
-      setLinkedAccounts(justLinked);
-      setStep("success");
-    }, 2000);
-  }
-
-  function handleDone() {
-    onSuccess(linkedAccounts);
-    onClose();
-  }
 
   return (
     <div
@@ -102,83 +123,61 @@ export default function PlaidLink({ isOpen, onClose, onSuccess }: PlaidLinkProps
 
         {/* Body */}
         <div className="p-5">
-          {/* Step 1: Select Institution */}
-          {step === "select" && (
-            <div>
+          {/* Loading state */}
+          {step === "loading" && (
+            <div className="text-center py-8">
+              <div className="animate-spin w-8 h-8 border-2 border-omn-primary border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-omn-heading font-medium mb-1">
+                Initializing Plaid Link...
+              </p>
+              <p className="text-xs text-omn-text">
+                Fetching a secure link token
+              </p>
+            </div>
+          )}
+
+          {/* Ready — show button to open Plaid Link */}
+          {step === "ready" && (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 7h18M3 12h18M3 17h18" strokeLinecap="round" />
+                </svg>
+              </div>
               <h3 className="text-lg font-semibold text-omn-heading mb-1">
                 Connect your bank
               </h3>
               <p className="text-sm text-omn-text mb-5">
-                Select your financial institution to securely link your accounts.
+                Securely link your bank accounts via Plaid. Your credentials are encrypted and never stored by OmnID.
               </p>
-
-              {availableInstitutions.length === 0 ? (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 bg-omn-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-xl text-omn-success">{"\u2713"}</span>
-                  </div>
-                  <p className="text-sm text-omn-heading font-medium mb-1">All banks linked</p>
-                  <p className="text-xs text-omn-text">
-                    You have connected all available institutions.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {availableInstitutions.map((inst) => (
-                    <button
-                      key={inst.id}
-                      onClick={() => handleSelectInstitution(inst)}
-                      className="w-full flex items-center gap-4 p-4 bg-omn-bg rounded-xl border border-omn-border hover:border-omn-primary transition-colors text-left group"
-                    >
-                      <div
-                        className={`w-11 h-11 ${inst.color} rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0`}
-                      >
-                        {inst.logo}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-omn-heading group-hover:text-omn-primary transition-colors">
-                          {inst.name}
-                        </p>
-                        <p className="text-xs text-omn-text">
-                          {inst.accounts.length} account{inst.accounts.length !== 1 ? "s" : ""} available
-                        </p>
-                      </div>
-                      <svg
-                        className="w-4 h-4 text-omn-text group-hover:text-omn-primary transition-colors"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <button
+                onClick={() => open()}
+                disabled={!ready}
+                className="w-full px-6 py-3 bg-omn-primary hover:bg-omn-primary-light disabled:opacity-50 text-white rounded-xl transition-colors text-sm font-medium"
+              >
+                Open Plaid Link
+              </button>
+              <p className="text-xs text-omn-text mt-3">
+                Sandbox credentials: user_good / pass_good
+              </p>
             </div>
           )}
 
-          {/* Step 2: Connecting */}
-          {step === "connecting" && selectedInstitution && (
+          {/* Exchanging public token */}
+          {step === "exchanging" && (
             <div className="text-center py-8">
-              <div
-                className={`w-16 h-16 ${selectedInstitution.color} rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-5`}
-              >
-                {selectedInstitution.logo}
-              </div>
               <div className="animate-spin w-8 h-8 border-2 border-omn-primary border-t-transparent rounded-full mx-auto mb-4" />
               <p className="text-omn-heading font-medium mb-1">
-                Connecting to {selectedInstitution.name}...
+                Linking your accounts...
               </p>
               <p className="text-xs text-omn-text">
-                Securely linking your accounts via Plaid
+                Securely exchanging credentials and fetching account data
               </p>
             </div>
           )}
 
-          {/* Step 3: Success */}
-          {step === "success" && selectedInstitution && (
+          {/* Success */}
+          {step === "success" && (
             <div>
               <div className="text-center mb-5">
                 <div className="w-14 h-14 bg-omn-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -186,42 +185,62 @@ export default function PlaidLink({ isOpen, onClose, onSuccess }: PlaidLinkProps
                 </div>
                 <p className="text-lg font-semibold text-omn-heading mb-1">Connected!</p>
                 <p className="text-sm text-omn-text">
-                  Successfully linked {linkedAccounts.length} account{linkedAccounts.length !== 1 ? "s" : ""} from {selectedInstitution.name}
+                  Successfully linked {linkedAccounts.length} account{linkedAccounts.length !== 1 ? "s" : ""}
                 </p>
               </div>
 
               <div className="space-y-2 mb-5">
                 {linkedAccounts.map((acc) => (
                   <div
-                    key={`${acc.institutionId}-${acc.mask}`}
+                    key={acc.account_id}
                     className="flex items-center gap-3 p-3 bg-omn-bg rounded-lg border border-omn-border"
                   >
-                    <div
-                      className={`w-9 h-9 ${acc.color} rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0`}
-                    >
-                      {acc.logo}
+                    <div className="w-9 h-9 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {acc.type === "depository" ? "BK" : acc.type === "credit" ? "CC" : "AC"}
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-omn-heading">{acc.accountName}</p>
+                      <p className="text-sm text-omn-heading">{acc.name}</p>
                       <p className="text-xs text-omn-text capitalize">
-                        {acc.accountType} {"\u00B7"} ****{acc.mask}
+                        {acc.subtype ?? acc.type} {acc.mask ? `\u00B7 ****${acc.mask}` : ""}
                       </p>
                     </div>
-                    <p className="text-sm font-mono text-omn-accent">
-                      ${acc.balance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-mono text-omn-accent">
+                        {acc.balances.current != null
+                          ? `$${acc.balances.current.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}`
+                          : "--"}
+                      </p>
+                      <p className="text-[10px] text-omn-text">{acc.balances.currency}</p>
+                    </div>
                   </div>
                 ))}
               </div>
 
               <button
-                onClick={handleDone}
+                onClick={onClose}
                 className="w-full px-6 py-2.5 bg-omn-primary hover:bg-omn-primary-light text-white rounded-xl transition-colors text-sm font-medium"
               >
                 Done
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {step === "error" && (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl text-red-400">!</span>
+              </div>
+              <p className="text-lg font-semibold text-omn-heading mb-1">Something went wrong</p>
+              <p className="text-sm text-omn-text mb-5">{errorMsg}</p>
+              <button
+                onClick={onClose}
+                className="w-full px-6 py-2.5 bg-omn-surface border border-omn-border hover:bg-omn-bg text-omn-heading rounded-xl transition-colors text-sm font-medium"
+              >
+                Close
               </button>
             </div>
           )}

@@ -4,6 +4,7 @@ import { usePersistedState } from "../hooks/usePersistedState";
 import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, type GoogleUser, type DetectedPlatform } from "../google-auth";
 import { pushActivity } from "../activity";
 import { setupRecaptcha, sendVerificationCode, verifyCode, cleanupRecaptcha } from "../api/firebase";
+import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../api/passkeys";
 
 type Step = "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
@@ -54,6 +55,13 @@ export default function Registration() {
   const [googleError, setGoogleError] = useState("");
   const [detectedPlatforms, setDetectedPlatforms] = usePersistedState<DetectedPlatform[]>("detected-platforms", getDetectedPlatforms());
   const [scanning, setScanning] = useState(false);
+
+  // WebAuthn passkey state
+  const [passkeySupported] = useState(() => isPasskeySupported());
+  const [passkeyRegistered, setPasskeyRegistered] = usePersistedState("passkey-registered", hasPasskey());
+  const [passkeyCredentialId, setPasskeyCredentialId] = usePersistedState<string | null>("passkey-cred-id", null);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState("");
 
   // Facebook demo sign-up
   const [fbModalOpen, setFbModalOpen] = useState(false);
@@ -435,7 +443,7 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Step 2: Passkey */}
+      {/* Step 2: Passkey (WebAuthn) */}
       {currentStep === "passkey" && (
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-omn-heading mb-2">Create Your Passkey</h2>
@@ -443,41 +451,109 @@ export default function Registration() {
             A passkey replaces passwords. It's stored securely on your device and can't be phished.
           </p>
 
-          <div className="space-y-3 mb-6">
-            <button
-              onClick={() => setPasskeyType("icloud")}
-              className={`w-full flex items-center gap-4 p-4 rounded-lg border transition-all ${
-                passkeyType === "icloud" ? "border-omn-success bg-omn-success/10" : "border-omn-border hover:border-omn-primary"
-              }`}
-            >
-              <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0">iC</div>
-              <div className="text-left flex-1">
-                <p className="text-sm font-medium text-omn-heading">iCloud Passkey</p>
-                <p className="text-xs text-omn-text">Syncs across all your Apple devices</p>
+          <div className="space-y-4 mb-6">
+            {/* Biometric icon */}
+            <div className="flex flex-col items-center py-4">
+              <div className="w-16 h-16 bg-omn-primary/15 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-omn-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 10a2 2 0 1 0 0 4" />
+                  <path d="M8.5 8.5a5.5 5.5 0 0 1 9.1 2.3" />
+                  <path d="M12 14a5.5 5.5 0 0 1-3.5-5.5" />
+                  <path d="M6 6a9 9 0 0 1 14.3 5" />
+                  <path d="M12 14c0 2.2-.7 4.1-2 5.5" />
+                  <path d="M18.8 12A9 9 0 0 1 10 21.5" />
+                  <path d="M4.6 9A9 9 0 0 1 6 6" />
+                </svg>
               </div>
-              {passkeyType === "icloud" && <span className="text-omn-success text-lg">{"\u2713"}</span>}
-            </button>
-            <button
-              onClick={() => setPasskeyType("standard")}
-              className={`w-full flex items-center gap-4 p-4 rounded-lg border transition-all ${
-                passkeyType === "standard" ? "border-omn-success bg-omn-success/10" : "border-omn-border hover:border-omn-primary"
-              }`}
-            >
-              <div className="w-10 h-10 bg-omn-primary rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0">PK</div>
-              <div className="text-left flex-1">
-                <p className="text-sm font-medium text-omn-heading">Standard Passkey</p>
-                <p className="text-xs text-omn-text">Device-specific, works on any browser</p>
+              {passkeyRegistered ? (
+                <p className="text-sm text-omn-success font-medium">Passkey registered</p>
+              ) : (
+                <p className="text-sm text-omn-text">Use your fingerprint, face, or device PIN</p>
+              )}
+            </div>
+
+            {/* Register / Success state */}
+            {passkeyRegistered ? (
+              <div className="bg-omn-success/10 border border-omn-success/30 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-omn-success text-lg">{"\u2713"}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-omn-heading">Passkey Created</p>
+                    {passkeyCredentialId && (
+                      <p className="text-xs text-omn-text font-mono mt-1 break-all">
+                        ID: {passkeyCredentialId.slice(0, 24)}...
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    clearPasskey();
+                    setPasskeyRegistered(false);
+                    setPasskeyCredentialId(null);
+                    setPasskeyType(null);
+                    if (linkedProviders.includes("passkey")) {
+                      setLinkedProviders((prev) => prev.filter((p) => p !== "passkey"));
+                    }
+                  }}
+                  className="text-xs text-omn-text hover:text-omn-danger mt-3 transition-colors"
+                >
+                  Remove passkey
+                </button>
               </div>
-              {passkeyType === "standard" && <span className="text-omn-success text-lg">{"\u2713"}</span>}
-            </button>
+            ) : passkeySupported ? (
+              <button
+                onClick={async () => {
+                  setPasskeyLoading(true);
+                  setPasskeyError("");
+                  try {
+                    const username = googleUser?.name || googleUser?.email || prompt("Enter your name for the passkey:") || "OmnID User";
+                    const cred = await createPasskey(username);
+                    const idBytes = new Uint8Array(cred.rawId);
+                    const idB64 = btoa(String.fromCharCode(...idBytes));
+                    setPasskeyRegistered(true);
+                    setPasskeyCredentialId(idB64);
+                    setPasskeyType("webauthn");
+                    if (!linkedProviders.includes("passkey")) {
+                      setLinkedProviders((prev) => [...prev, "passkey"]);
+                    }
+                    pushActivity("Passkey registered via WebAuthn", "PK", "bg-purple-600");
+                  } catch (e: any) {
+                    setPasskeyError(e?.message ?? "Failed to create passkey.");
+                  } finally {
+                    setPasskeyLoading(false);
+                  }
+                }}
+                disabled={passkeyLoading}
+                className="w-full flex items-center gap-4 p-4 rounded-lg border border-omn-border hover:border-omn-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="w-10 h-10 bg-omn-primary rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0">PK</div>
+                <div className="text-left flex-1">
+                  <p className="text-sm font-medium text-omn-heading">
+                    {passkeyLoading ? "Waiting for device..." : "Register with Passkey"}
+                  </p>
+                  <p className="text-xs text-omn-text">Uses your device biometrics or PIN</p>
+                </div>
+              </button>
+            ) : (
+              <div className="bg-omn-accent/10 border border-omn-accent/30 rounded-lg p-4">
+                <p className="text-sm text-omn-accent font-medium">Passkeys are not supported in this browser.</p>
+                <p className="text-xs text-omn-text mt-1">
+                  Try using Chrome, Safari, or Edge on a device with biometric support. You can skip this step.
+                </p>
+              </div>
+            )}
+
+            {passkeyError && (
+              <p className="text-xs text-omn-danger">{passkeyError}</p>
+            )}
           </div>
 
           <div className="flex gap-3">
             <button onClick={() => setCurrentStep("oauth")} className="px-4 py-2 bg-omn-surface border border-omn-border rounded-lg text-sm text-omn-text hover:text-omn-heading transition-colors">Back</button>
             <button
               onClick={() => setCurrentStep("phone")}
-              disabled={!passkeyType}
-              className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors"
             >
               Continue
             </button>

@@ -2,6 +2,13 @@
 // Set VITE_GOOGLE_CLIENT_ID in .env to enable real Google sign-in
 // Requires People API + Gmail API enabled in Google Cloud Console
 
+import {
+  loadFromFirestore,
+  syncToFirestore,
+  autoSync,
+  stopAutoSync,
+} from "./api/firestore.ts";
+
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export interface GoogleUser {
@@ -197,6 +204,16 @@ export async function googleSignIn(): Promise<GoogleUser> {
           }
 
           localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+
+          // Pull existing cloud data then start auto-sync
+          try {
+            await loadFromFirestore(user.email);
+            autoSync(user.email);
+          } catch (_firestoreErr) {
+            // Firestore sync is best-effort; don't block sign-in
+            console.warn("Firestore sync failed:", _firestoreErr);
+          }
+
           resolve(user);
         } catch (e) {
           reject(e);
@@ -271,7 +288,21 @@ export function getGoogleUser(): GoogleUser | null {
   }
 }
 
-export function clearGoogleUser(): void {
+export async function clearGoogleUser(): Promise<void> {
+  // Final sync before clearing
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      const user = JSON.parse(raw) as GoogleUser;
+      if (user.email) {
+        await syncToFirestore(user.email);
+      }
+    } catch {
+      // best-effort
+    }
+  }
+  stopAutoSync();
+
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(PLATFORMS_KEY);
   _lastAccessToken = null;
