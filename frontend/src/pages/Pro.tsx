@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { usePersistedState } from "../hooks/usePersistedState";
+import { useState, useEffect } from "react";
+import { getGoogleUser } from "../google-auth";
 
 const features = [
   {
@@ -28,12 +28,87 @@ const features = [
   },
 ];
 
+const PRO_KEY = "omnid-pro-subscribed";
+const PRO_SESSION_KEY = "omnid-pro-session-id";
+
 export default function Pro() {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("monthly");
-  const [subscribed, setSubscribed] = usePersistedState("pro-subscribed", false);
+  const [subscribed, setSubscribed] = useState(() => localStorage.getItem(PRO_KEY) === "true");
+  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const googleUser = getGoogleUser();
 
-  function handleSubscribe() {
-    setSubscribed(true);
+  // On mount, check for session_id in URL (returning from Stripe Checkout)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (sessionId && !subscribed) {
+      verifySession(sessionId);
+      // Clean URL
+      window.history.replaceState({}, "", "/pro");
+    }
+  }, []);
+
+  async function verifySession(sessionId: string) {
+    setVerifying(true);
+    setError(null);
+    try {
+      const res = await fetch("/.netlify/functions/verify-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json();
+      if (data.paid) {
+        localStorage.setItem(PRO_KEY, "true");
+        localStorage.setItem(PRO_SESSION_KEY, sessionId);
+        setSubscribed(true);
+      } else {
+        setError("Payment not confirmed. Please try again or contact support.");
+      }
+    } catch {
+      setError("Could not verify payment. Please try again.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleSubscribe() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/.netlify/functions/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: selectedPlan,
+          userEmail: googleUser?.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || "Could not create checkout session.");
+        setLoading(false);
+      }
+    } catch {
+      setError("Could not connect to payment server. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  if (verifying) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <div className="w-16 h-16 bg-omn-pro/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <span className="text-2xl text-omn-pro">{"\u2605"}</span>
+        </div>
+        <h1 className="text-2xl font-bold text-omn-heading mb-2">Verifying payment...</h1>
+        <p className="text-sm text-omn-text">Confirming your subscription with Stripe.</p>
+      </div>
+    );
   }
 
   if (subscribed) {
@@ -144,7 +219,9 @@ export default function Pro() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-omn-heading">Henry Thompson</span>
+                <span className="text-sm font-medium text-omn-heading">
+                  {googleUser?.name ?? "Henry Thompson"}
+                </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-omn-pro/20 border border-omn-pro/30 rounded-full">
                   <span className="text-[10px] text-omn-pro">{"\u2605"}</span>
                   <span className="text-[10px] font-medium text-omn-pro">Pro Verified</span>
@@ -155,16 +232,24 @@ export default function Pro() {
           </div>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="bg-omn-danger/10 border border-omn-danger/30 rounded-xl p-4 mb-6 text-center">
+            <p className="text-sm text-omn-danger">{error}</p>
+          </div>
+        )}
+
         {/* Subscribe CTA */}
         <div className="text-center">
           <button
             onClick={handleSubscribe}
-            className="px-8 py-3 bg-gradient-to-r from-omn-pro to-omn-accent text-white rounded-xl font-medium text-lg transition-all duration-200 hover:shadow-lg hover:shadow-omn-pro/20"
+            disabled={loading}
+            className="px-8 py-3 bg-gradient-to-r from-omn-pro to-omn-accent text-white rounded-xl font-medium text-lg transition-all duration-200 hover:shadow-lg hover:shadow-omn-pro/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Subscribe to OmnID Pro — {selectedPlan === "monthly" ? "$9.99/mo" : "$99/yr"}
+            {loading ? "Redirecting to Stripe..." : `Subscribe to OmnID Pro — ${selectedPlan === "monthly" ? "$9.99/mo" : "$99/yr"}`}
           </button>
           <p className="text-xs text-omn-text mt-3">
-            Cancel anytime. 7-day free trial included. (Demo — no real charge)
+            Secure checkout powered by Stripe. Cancel anytime.
           </p>
         </div>
 
