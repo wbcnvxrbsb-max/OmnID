@@ -5,7 +5,6 @@ import {
   http,
   parseEther,
   formatEther,
-  type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { hardhat } from "viem/chains";

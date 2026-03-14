@@ -13,7 +13,6 @@ import { fetchCryptoPrices, CHAIN_NATIVE_SYMBOL, type CryptoPrice } from "../api
 import { getTokenBalances, type TokenBalance } from "../api/token-balances";
 import {
   getLinkedBanks,
-  linkBank,
   unlinkBank,
   AVAILABLE_INSTITUTIONS,
   type PlaidAccount,

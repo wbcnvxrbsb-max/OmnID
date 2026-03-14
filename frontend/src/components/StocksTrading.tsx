@@ -446,7 +446,7 @@ export default function StocksTrading() {
     return sum + (price * h.shares * (change / 100));
   }, 0);
   const totalValue = cashBalance + portfolioValue;
-  const buyingPower = cashBalance * 2;
+  const _buyingPower = cashBalance * 2;
 
   const tradeStock = marketData[tradeSymbol.toUpperCase()];
   const liveTradePrice = getPrice(tradeSymbol.toUpperCase()).price || tradeStock?.price || 0;

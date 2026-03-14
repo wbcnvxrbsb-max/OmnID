@@ -13,6 +13,7 @@ import {
   createConfig,
   EVM,
 } from "@lifi/sdk";
+import { ChainType } from "@lifi/types";
 import type { Token, ExtendedChain, Route } from "@lifi/types";
 import {
   hasWallet,
@@ -83,7 +84,7 @@ export default function Trading() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-  const selectedFunding = fundingSources.find((f) => f.id === selectedFundingId) ?? null;
+  const _selectedFunding = fundingSources.find((f) => f.id === selectedFundingId) ?? null;
 
   // ─── Check for existing wallet on mount ───
   useEffect(() => {
@@ -154,7 +155,7 @@ export default function Trading() {
       try {
         setLoadingTokens(true);
         const [chainsRes, tokensRes] = await Promise.all([
-          getChains({ chainTypes: ["EVM"] }),
+          getChains({ chainTypes: [ChainType.EVM] }),
           getTokens({ chains: SUPPORTED_CHAIN_IDS }),
         ]);
         setLifiChains(chainsRes.filter((c) => SUPPORTED_CHAIN_IDS.includes(c.id)));
@@ -276,7 +277,7 @@ export default function Trading() {
       ? (Number(quote.toAmountMin) / 10 ** (toToken?.decimals ?? 18)).toFixed(6)
       : null;
   const estimatedGas = quote?.gasCostUSD ? `$${Number(quote.gasCostUSD).toFixed(2)}` : null;
-  const totalBalanceUsd = Object.entries(balances).reduce((sum, [chainIdStr, b]) => {
+  const _totalBalanceUsd = Object.entries(balances).reduce((sum, [chainIdStr, b]) => {
     const nativeSym = CHAIN_NATIVE_SYMBOL[Number(chainIdStr)];
     const price = nativeSym ? cryptoPrices[nativeSym] : undefined;
     return sum + (price ? Number(b.formatted) * price.usd : 0);

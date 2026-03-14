@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { lessons } from "../data/lessons";
 import type { QuizQuestion } from "../data/lessons";
@@ -113,7 +113,7 @@ function QuizComponent({
 
 export default function Lesson() {
   const { lessonId } = useParams();
-  const navigate = useNavigate();
+
   const id = Number(lessonId);
   const lesson = lessons.find((l) => l.id === id);
   const [completed, setCompleted] = useState<number[]>([]);

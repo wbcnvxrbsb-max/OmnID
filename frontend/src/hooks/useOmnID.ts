@@ -91,12 +91,12 @@ export function useTransferReputation() {
   const chainId = useChainId();
   const addrs = getAddresses(chainId);
 
-  function transferReputation(userAddress: `0x${string}`, sourcePlatform: `0x${string}`, destPlatform: `0x${string}`) {
+  function transferReputation(sourcePlatform: `0x${string}`, destPlatform: `0x${string}`) {
     writeContract({
       address: addrs.reputationAggregator,
       abi: ReputationAggregatorAbi,
       functionName: "transferReputation",
-      args: [userAddress, sourcePlatform, destPlatform],
+      args: [sourcePlatform, destPlatform],
     });
   }
 

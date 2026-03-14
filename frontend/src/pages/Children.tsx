@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   getParentData,
-  saveParentData,
   checkAutoEjection,
   getChildAge,
   removeChild,

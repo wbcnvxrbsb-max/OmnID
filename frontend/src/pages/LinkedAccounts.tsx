@@ -14,7 +14,6 @@ import { simulateGitHubLink, getGitHubUser, clearGitHubUser, type GitHubUser } f
 import { pushActivity } from "../activity";
 
 // Demo user: Henry Thompson
-const demoSSN = "890-12-3456";
 
 type DrillLevel = "cluster" | "category" | "subcategory" | "platform";
 type ConnectStep = "idle" | "connecting" | "done";
@@ -88,7 +87,7 @@ export default function LinkedAccounts() {
               ...relevantSources.map((src) => ({
                 sourceName: src.platformName,
                 destName: taxP.name,
-                rating: src.rating,
+                rating: src.score,
                 date: now,
               })),
             ]);

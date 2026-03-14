@@ -8,7 +8,7 @@ import {
   canChildUsePlatform,
   getPlatformAgeRule,
   updateChildPermission,
-  type ChildAccount,
+
   type PlatformPermission,
   type ContentLevel,
 } from "../data/parental-controls";
@@ -1013,8 +1013,8 @@ function ConsentScreen({
 
 function SuccessScreen({
   platformName,
-  platformColor,
-  platformIcon,
+  platformColor: _platformColor,
+  platformIcon: _platformIcon,
   data,
   onTryAnother,
   childBadge,
@@ -1309,7 +1309,7 @@ function ChildDemo() {
     }
   }
 
-  function handleApproved(contentLevel: ContentLevel, permission: PlatformPermission) {
+  function handleApproved(_contentLevel: ContentLevel, permission: PlatformPermission) {
     if (selectedChild && platformId) {
       updateChildPermission(selectedChild.id, permission);
     }

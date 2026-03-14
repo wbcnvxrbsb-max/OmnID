@@ -47,7 +47,7 @@ export default function Registration() {
   const [otpInput, setOtpInput] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpSending, setOtpSending] = useState(false);
-  const [recaptchaReady, setRecaptchaReady] = useState(false);
+  const [, setRecaptchaReady] = useState(false);
   const [usedSSNs, setUsedSSNs] = usePersistedState<string[]>("reg-used-ssns", []);
   const [googleUser, setGoogleUser] = usePersistedState<GoogleUser | null>("google-user", getGoogleUser());
   const [googleLoading, setGoogleLoading] = useState(false);
