@@ -30,7 +30,9 @@ import {
 } from "../wallet";
 import StocksTrading from "../components/StocksTrading";
 
-const SUPPORTED_CHAIN_IDS = SUPPORTED_CHAINS.map((c) => c.id);
+// LI.FI only supports mainnet chains — exclude testnets from trading
+const TRADING_CHAIN_IDS = SUPPORTED_CHAINS.map((c) => c.id).filter((id) => id !== 84532);
+const SUPPORTED_CHAIN_IDS = TRADING_CHAIN_IDS;
 
 
 type Tab = "crypto" | "stocks";
