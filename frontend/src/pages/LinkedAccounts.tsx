@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateMockProfile, type PlatformProfile } from "../data/sandbox-platforms";
 import {
   taxonomy,
@@ -10,7 +10,7 @@ import {
 } from "../data/platform-taxonomy";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, type GoogleUser, type DetectedPlatform } from "../google-auth";
-import { simulateGitHubLink, getGitHubUser, clearGitHubUser, type GitHubUser } from "../api/github-auth";
+import { isGitHubConfigured, startGitHubOAuth, handleGitHubCallback, simulateGitHubLink, getGitHubUser, clearGitHubUser, type GitHubUser } from "../api/github-auth";
 import { pushActivity } from "../activity";
 
 // Demo user: Henry Thompson
@@ -27,6 +27,26 @@ export default function LinkedAccounts() {
 
   // GitHub
   const [githubUser, setGithubUser] = usePersistedState<GitHubUser | null>("github-user", getGitHubUser());
+
+  // Handle OAuth callbacks (GitHub, Discord, Spotify)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const path = window.location.pathname;
+    if (!code) return;
+
+    if (path.includes("/auth/github/callback") || path === "/accounts") {
+      // GitHub callback — check if state param matches or just use code
+      const state = params.get("state");
+      if (state === "github" || (!state && isGitHubConfigured())) {
+        handleGitHubCallback(code).then((user) => {
+          setGithubUser(user);
+          pushActivity(`Linked GitHub (@${user.login})`, "GH", "bg-omn-primary");
+        }).catch(console.error);
+        window.history.replaceState({}, "", "/accounts");
+      }
+    }
+  }, []);
 
   // Connected platforms (persisted)
   const [connectedProfiles, setConnectedProfiles] = usePersistedState<PlatformProfile[]>("linked-profiles", []);
@@ -303,9 +323,13 @@ export default function LinkedAccounts() {
             ) : (
               <button
                 onClick={() => {
-                  const user = simulateGitHubLink();
-                  setGithubUser(user);
-                  pushActivity(`Linked GitHub (@${user.login})`, "GH", "bg-omn-primary");
+                  if (isGitHubConfigured()) {
+                    startGitHubOAuth();
+                  } else {
+                    const user = simulateGitHubLink();
+                    setGithubUser(user);
+                    pushActivity(`Linked GitHub (@${user.login})`, "GH", "bg-omn-primary");
+                  }
                 }}
                 className="text-xs px-3 py-1 bg-omn-primary/20 text-omn-primary rounded-full hover:bg-omn-primary/30 transition-colors"
               >

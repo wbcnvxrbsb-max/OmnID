@@ -21,9 +21,12 @@ export function isGitHubConfigured(): boolean {
 
 /** Redirects the browser to GitHub's OAuth authorize URL. */
 export function startGitHubOAuth(): void {
+  const redirectUri = `${window.location.origin}/accounts`;
   const params = new URLSearchParams({
     client_id: CLIENT_ID!,
+    redirect_uri: redirectUri,
     scope: "read:user repo",
+    state: "github",
   });
   window.location.href = `https://github.com/login/oauth/authorize?${params.toString()}`;
 }
