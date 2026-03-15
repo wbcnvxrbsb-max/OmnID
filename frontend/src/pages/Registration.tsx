@@ -328,8 +328,7 @@ export default function Registration() {
             Sign In
           </h2>
           <p className="text-sm text-omn-text mb-6">
-            Sign in with Google — that's all you need to start transferring your data between apps.
-            No registration forms, no government ID required.
+            Sign in with Google to get started. You'll verify your identity in a later step.
           </p>
 
           <div className="space-y-3 mb-6">

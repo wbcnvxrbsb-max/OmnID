@@ -55,25 +55,43 @@ function UserButton() {
     );
   }
 
+  const [signingIn, setSigningIn] = useState(false);
+  const [noPasskey, setNoPasskey] = useState(false);
+
   return (
-    <button
-      onClick={async () => {
-        if (hasPasskey()) {
-          try {
-            await authenticateWithPasskey();
-            window.location.reload();
-          } catch {
-            // passkey failed — fall back to register
-            window.location.href = "/register";
-          }
-        } else {
-          window.location.href = "/register";
-        }
-      }}
-      className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors"
-    >
-      Sign In
-    </button>
+    <div className="flex items-center gap-2">
+      {noPasskey ? (
+        <>
+          <span className="text-[10px] text-omn-text">No passkey found</span>
+          <a
+            href="/register"
+            className="px-3 py-1.5 text-xs font-medium text-omn-accent hover:text-omn-primary-light transition-colors"
+          >
+            Create Account
+          </a>
+        </>
+      ) : (
+        <button
+          onClick={async () => {
+            if (!hasPasskey()) {
+              setNoPasskey(true);
+              return;
+            }
+            setSigningIn(true);
+            try {
+              await authenticateWithPasskey();
+              window.location.reload();
+            } catch {
+              setSigningIn(false);
+            }
+          }}
+          disabled={signingIn}
+          className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors disabled:opacity-50"
+        >
+          {signingIn ? "Verifying..." : "Sign In"}
+        </button>
+      )}
+    </div>
   );
 }
 
