@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { lookupSSN, sandboxDatabase } from "../data/sandbox-ssn";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, type GoogleUser, type DetectedPlatform } from "../google-auth";
@@ -438,6 +439,13 @@ export default function Registration() {
               I understand and consent to OmnID's data collection as described above
             </span>
           </label>
+
+          <p className="text-sm text-omn-text mb-6">
+            Read our full{" "}
+            <Link to="/privacy" className="text-omn-primary hover:text-omn-primary-light transition-colors underline">Privacy Policy</Link>
+            {" "}and{" "}
+            <Link to="/terms" className="text-omn-primary hover:text-omn-primary-light transition-colors underline">Terms of Service</Link>.
+          </p>
 
           <button
             onClick={() => setCurrentStep("oauth")}

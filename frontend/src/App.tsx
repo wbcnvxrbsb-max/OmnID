@@ -12,6 +12,8 @@ import Trading from "./pages/Trading";
 import Faucet from "./pages/Faucet";
 import PartnerDemo from "./pages/PartnerDemo";
 import Children from "./pages/Children";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
 import { hasWallet, getAddress, initSecureWallet } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
@@ -317,8 +319,18 @@ function App() {
           <Route path="/pro" element={<Pro />} />
           <Route path="/children" element={<Children />} />
           <Route path="/demo" element={<PartnerDemo />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<Terms />} />
         </Routes>
       </main>
+
+      <footer className="border-t border-omn-border/60 mt-12">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-center gap-4 text-xs text-omn-text">
+          <NavLink to="/privacy" className="hover:text-omn-primary transition-colors">Privacy Policy</NavLink>
+          <span className="text-omn-border">|</span>
+          <NavLink to="/terms" className="hover:text-omn-primary transition-colors">Terms of Service</NavLink>
+        </div>
+      </footer>
     </div>
   );
 }
