@@ -4,6 +4,7 @@ import stripeRoutes from "./routes/stripe.js";
 import oauthRoutes from "./routes/oauth.js";
 import plaidRoutes from "./routes/plaid.js";
 import faucetRoutes from "./routes/faucet.js";
+import identityRoutes from "./routes/identity.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use(stripeRoutes);
 app.use(oauthRoutes);
 app.use(plaidRoutes);
 app.use(faucetRoutes);
+app.use(identityRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

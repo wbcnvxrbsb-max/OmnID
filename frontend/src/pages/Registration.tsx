@@ -5,10 +5,7 @@ import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detec
 import { pushActivity } from "../activity";
 import { setupRecaptcha, sendVerificationCode, verifyCode, cleanupRecaptcha } from "../api/firebase";
 import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../api/passkeys";
-import { hasWallet, createNewWallet, getAddress, makeWalletClient, makePublicClient, SUPPORTED_CHAINS } from "../wallet";
-import { keccak256, encodePacked } from "viem";
-import { getAddresses } from "../contracts/addresses";
-import { IdentityRegistryAbi } from "../contracts/abis";
+import { API_BASE } from "../api/config";
 
 type Step = "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
@@ -281,61 +278,29 @@ export default function Registration() {
     setChainError("");
 
     try {
-      // Auto-create wallet if user doesn't have one
-      if (!hasWallet()) {
-        createNewWallet();
-        pushActivity("Wallet auto-created for on-chain identity", "WL", "bg-blue-600");
-      }
+      const email = googleUser?.email ?? "";
+      const name = verifiedPerson?.name ?? googleUser?.name ?? "";
+      const ssnDigits = ssn.replace(/\D/g, "");
 
-      const address = getAddress();
-      if (!address) throw new Error("No wallet address");
+      const res = await fetch(`${API_BASE}/api/register-identity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, ssnHash: ssnDigits }),
+      });
 
-      // Register identity on Base Sepolia
-      const baseSepolia = SUPPORTED_CHAINS.find((c) => c.id === 84532);
-      if (!baseSepolia) throw new Error("Base Sepolia not configured");
-
-      const addrs = getAddresses(84532);
-      const publicClient = makePublicClient(baseSepolia);
-
-      // Check if already registered
-      let alreadyRegistered = false;
-      try {
-        const result = await publicClient.readContract({
-          address: addrs.identityRegistry,
-          abi: IdentityRegistryAbi,
-          functionName: "hasIdentity",
-          args: [address],
-        });
-        alreadyRegistered = !!result;
-      } catch {
-        // Contract call failed — likely no identity yet
-      }
-
-      if (!alreadyRegistered) {
-        // Hash user data for on-chain registration
-        const email = googleUser?.email ?? "";
-        const name = verifiedPerson?.name ?? googleUser?.name ?? "";
-        const metadataHash = keccak256(encodePacked(["string", "string"], [name, email]));
-        const ssnHash = keccak256(encodePacked(["string"], [ssn.replace(/\D/g, "")]));
-
-        const walletClient = makeWalletClient(baseSepolia);
-        const hash = await walletClient.writeContract({
-          address: addrs.identityRegistry,
-          abi: IdentityRegistryAbi,
-          functionName: "createIdentity",
-          args: [metadataHash, address, ssnHash],
-          chain: baseSepolia,
-        });
-
-        await publicClient.waitForTransactionReceipt({ hash });
-        pushActivity("Identity registered on Base Sepolia blockchain", "BC", "bg-emerald-600");
+      const data = await res.json();
+      if (data.success) {
+        if (data.alreadyRegistered) {
+          pushActivity("Identity already on-chain", "BC", "bg-emerald-600");
+        } else {
+          pushActivity("Identity registered on Base Sepolia blockchain", "BC", "bg-emerald-600");
+        }
       } else {
-        pushActivity("Identity already on-chain — skipped registration", "BC", "bg-emerald-600");
+        throw new Error(data.error || "Registration failed");
       }
     } catch (e: any) {
       console.warn("On-chain registration failed:", e);
       setChainError(e?.message ?? "On-chain registration failed. You can retry later.");
-      // Don't block completion — on-chain is best-effort for now
     } finally {
       setRegistering(false);
       setCurrentStep("complete");
