@@ -9,8 +9,32 @@ import identityRoutes from "./routes/identity.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS — allow all origins for now
-app.use(cors());
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
+// CORS — restrict to known origins
+const ALLOWED_ORIGINS = [
+  "https://omnid.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+}));
 
 // The Stripe webhook route needs the raw body for signature verification,
 // so we mount it BEFORE the global express.json() middleware.

@@ -16,7 +16,11 @@ const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY as Hex | undefined;
 const RPC = "https://sepolia.base.org";
 const IDENTITY_REGISTRY = "0x7482502d6797df28a78a42c00e7df3cc5d5860d8" as Hex;
 
-// Minimal ABI for createIdentity and hasIdentity
+// Rate limiting: 1 registration per email per 5 minutes
+const recentRegistrations = new Map<string, number>();
+const COOLDOWN_MS = 5 * 60_000;
+
+// Minimal ABI for createIdentity
 const IDENTITY_ABI = [
   {
     inputs: [
@@ -29,13 +33,6 @@ const IDENTITY_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-  {
-    inputs: [{ name: "user", type: "address" }],
-    name: "hasIdentity",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
 ] as const;
 
 router.post("/api/register-identity", async (req, res) => {
@@ -43,10 +40,21 @@ router.post("/api/register-identity", async (req, res) => {
     return res.status(500).json({ error: "Identity registration not configured" });
   }
 
-  const { name, email, ssnHash: clientSsnHash, walletAddress } = req.body;
+  const { name, email, ssnHash } = req.body;
 
   if (!name || !email) {
     return res.status(400).json({ error: "Missing name or email" });
+  }
+
+  // Validate ssnHash looks like a keccak256 hash (0x + 64 hex chars)
+  if (!ssnHash || typeof ssnHash !== "string" || !ssnHash.match(/^0x[0-9a-fA-F]{64}$/)) {
+    return res.status(400).json({ error: "Invalid identity hash" });
+  }
+
+  // Rate limit
+  const lastReg = recentRegistrations.get(email.toLowerCase());
+  if (lastReg && Date.now() - lastReg < COOLDOWN_MS) {
+    return res.status(429).json({ error: "Please wait before registering again." });
   }
 
   try {
@@ -54,15 +62,14 @@ router.post("/api/register-identity", async (req, res) => {
     const publicClient = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
     const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(RPC) });
 
-    // Use the user's wallet address if provided, otherwise derive one from their email
-    const recoveryAddress = (walletAddress || account.address) as Hex;
-
-    // Hash identity data
+    // Hash identity metadata (name + email) — server also hashes so we verify
     const metadataHash = keccak256(encodePacked(["string", "string"], [name, email]));
-    const ssnCommitment = (clientSsnHash || keccak256(encodePacked(["string"], ["unknown"]))) as Hex;
 
-    // Check if already registered (by metadata hash — we check the deployer's identity for now)
-    // In production, you'd map email → on-chain address in a database
+    // SSN commitment comes pre-hashed from the client — never raw
+    const ssnCommitment = ssnHash as Hex;
+
+    // Recovery address is the deployer for now (user doesn't need their own wallet)
+    const recoveryAddress = account.address;
 
     // Register on-chain
     const hash = await walletClient.writeContract({
@@ -75,19 +82,22 @@ router.post("/api/register-identity", async (req, res) => {
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
+    recentRegistrations.set(email.toLowerCase(), Date.now());
+
+    // Don't expose internal details — just confirm success
     return res.json({
       success: true,
       txHash: hash,
       blockNumber: Number(receipt.blockNumber),
-      explorer: `https://sepolia.basescan.org/tx/${hash}`,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    // If it's a "already has identity" error, that's fine
     if (message.includes("already") || message.includes("Identity exists")) {
       return res.json({ success: true, alreadyRegistered: true });
     }
-    return res.status(500).json({ error: message });
+    // Don't expose internal error details to client
+    console.error("Identity registration error:", message);
+    return res.status(500).json({ error: "Registration failed. Please try again." });
   }
 });
 

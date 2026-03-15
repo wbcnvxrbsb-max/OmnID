@@ -6,6 +6,7 @@ import { pushActivity } from "../activity";
 import { setupRecaptcha, sendVerificationCode, verifyCode, cleanupRecaptcha } from "../api/firebase";
 import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../api/passkeys";
 import { API_BASE } from "../api/config";
+import { keccak256, toHex } from "viem";
 
 type Step = "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
@@ -280,13 +281,19 @@ export default function Registration() {
     try {
       const email = googleUser?.email ?? "";
       const name = verifiedPerson?.name ?? googleUser?.name ?? "";
+      // Hash SSN client-side — raw SSN never leaves the browser
       const ssnDigits = ssn.replace(/\D/g, "");
+      const ssnHash = keccak256(toHex(ssnDigits));
 
       const res = await fetch(`${API_BASE}/api/register-identity`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, ssnHash: ssnDigits }),
+        body: JSON.stringify({ name, email, ssnHash }),
       });
+
+      // Clear SSN from state after sending hash
+      setSsn("");
+      setSsnPerson(null);
 
       const data = await res.json();
       if (data.success) {
