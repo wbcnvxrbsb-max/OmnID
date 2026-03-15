@@ -40,9 +40,12 @@ function UserButton() {
         <span className="text-xs text-omn-text hidden lg:inline">{user.name?.split(" ")[0]}</span>
         <button
           onClick={() => {
+            // Clear all OmnID data from this device
+            const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith("omnid-"));
+            keysToRemove.forEach((k) => localStorage.removeItem(k));
             clearGoogleUser();
             setUser(null);
-            navigate("/register");
+            window.location.href = "/register";
           }}
           className="text-xs text-omn-text hover:text-omn-danger transition-colors ml-1"
           title="Sign out"
