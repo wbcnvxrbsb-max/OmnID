@@ -1290,7 +1290,7 @@ function ChildDemo() {
       setState("age-blocked");
     } else if (status === "parent_blocked") {
       setState("parent-blocked");
-    } else if (status === "needs_approval") {
+    } else if (status === "needs_consent") {
       setState("approval");
     } else {
       setState("signup");
@@ -1302,7 +1302,7 @@ function ChildDemo() {
     const status = canChildUsePlatform(selectedChild, platformId);
     if (status === "blocked") {
       setState("age-blocked");
-    } else if (status === "needs_approval") {
+    } else if (status === "needs_consent") {
       setState("approval");
     } else {
       setState("consent");
@@ -1402,7 +1402,7 @@ function ChildDemo() {
                     className={`bg-omn-surface border rounded-xl p-4 text-left transition-all duration-200 group ${
                       status === "blocked" || status === "parent_blocked"
                         ? "border-omn-danger/30 opacity-60"
-                        : status === "needs_approval"
+                        : status === "needs_consent"
                         ? "border-yellow-500/30 hover:border-yellow-500/50"
                         : "border-omn-border hover:border-omn-success/50"
                     }`}
@@ -1421,8 +1421,8 @@ function ChildDemo() {
                       {status === "allowed" && (
                         <span className="text-[10px] px-2 py-0.5 bg-omn-success/20 text-omn-success rounded-full">{"\u2713"} Meets age</span>
                       )}
-                      {status === "needs_approval" && (
-                        <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Needs approval</span>
+                      {status === "needs_consent" && (
+                        <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Parental consent</span>
                       )}
                       {status === "parent_blocked" && (
                         <span className="text-[10px] px-2 py-0.5 bg-omn-danger/20 text-omn-danger rounded-full">Parent blocked</span>
@@ -1457,10 +1457,12 @@ function ChildDemo() {
           </p>
           <div className="bg-omn-danger/10 border border-omn-danger/20 rounded-xl p-4 mb-6">
             <p className="text-xs text-omn-text">
-              This age restriction cannot be overridden, even with parental approval.
+              This is {platform.name}'s age requirement, not OmnID's. OmnID truthfully reports your child's age to platforms and cannot override their policies.
               {platform.id === "uber" && " Uber requires riders to be 18+ for safety and legal reasons."}
               {platform.id === "airbnb" && " Airbnb requires guests to be 18+ to enter binding rental agreements."}
               {platform.id === "coinbase" && " Coinbase requires users to be 18+ for regulatory compliance."}
+              {platform.id === "facebook" && " Facebook requires users to be 13+ per their Terms of Service."}
+              {platform.id === "linkedin" && " LinkedIn requires users to be 16+ per their User Agreement."}
             </p>
           </div>
           <button

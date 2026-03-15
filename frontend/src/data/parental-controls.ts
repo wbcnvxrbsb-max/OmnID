@@ -47,20 +47,27 @@ export interface ParentData {
 export interface PlatformAgeRule {
   platformId: string;
   minAge: number;
-  childAccountAvailable: boolean;
-  parentOverrideAllowed: boolean;
+  childAccountAvailable: boolean; // Platform natively supports child/family accounts
+  omnidPartner: boolean; // Platform has partnered with OmnID to accept children via parental consent
   label: string;
 }
 
+// parentOverrideAllowed is REMOVED — parents cannot override a platform's own age requirements.
+// Instead, platforms that partner with OmnID can accept children with verified parental consent.
+// Platforms that haven't partnered enforce their own age gate — OmnID cannot bypass it.
+
 export const PLATFORM_AGE_RULES: PlatformAgeRule[] = [
-  { platformId: "facebook",  minAge: 13, childAccountAvailable: false, parentOverrideAllowed: true,  label: "13+" },
-  { platformId: "uber",      minAge: 18, childAccountAvailable: false, parentOverrideAllowed: false, label: "18+" },
-  { platformId: "doordash",  minAge: 18, childAccountAvailable: true,  parentOverrideAllowed: true,  label: "18+ (dasher) / any (customer)" },
-  { platformId: "airbnb",    minAge: 18, childAccountAvailable: false, parentOverrideAllowed: false, label: "18+" },
-  { platformId: "linkedin",  minAge: 16, childAccountAvailable: false, parentOverrideAllowed: true,  label: "16+" },
-  { platformId: "instacart", minAge: 18, childAccountAvailable: true,  parentOverrideAllowed: true,  label: "18+ (shopper) / any (customer)" },
-  { platformId: "spotify",   minAge: 13, childAccountAvailable: true,  parentOverrideAllowed: true,  label: "13+ (child accounts)" },
-  { platformId: "coinbase",  minAge: 18, childAccountAvailable: false, parentOverrideAllowed: false, label: "18+" },
+  // Platforms with native child/family support OR OmnID partnership
+  { platformId: "spotify",   minAge: 13, childAccountAvailable: true,  omnidPartner: false, label: "13+ (has family/kids accounts)" },
+  { platformId: "doordash",  minAge: 18, childAccountAvailable: true,  omnidPartner: false, label: "18+ (dasher) / any (customer)" },
+  { platformId: "instacart", minAge: 18, childAccountAvailable: true,  omnidPartner: false, label: "18+ (shopper) / any (customer)" },
+
+  // Platforms that enforce age — OmnID cannot override
+  { platformId: "facebook",  minAge: 13, childAccountAvailable: false, omnidPartner: false, label: "13+ (platform-enforced)" },
+  { platformId: "linkedin",  minAge: 16, childAccountAvailable: false, omnidPartner: false, label: "16+ (platform-enforced)" },
+  { platformId: "uber",      minAge: 18, childAccountAvailable: false, omnidPartner: false, label: "18+ (legal requirement)" },
+  { platformId: "airbnb",    minAge: 18, childAccountAvailable: false, omnidPartner: false, label: "18+ (legal requirement)" },
+  { platformId: "coinbase",  minAge: 18, childAccountAvailable: false, omnidPartner: false, label: "18+ (regulatory requirement)" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -110,27 +117,36 @@ export function getPlatformAgeRule(platformId: string): PlatformAgeRule | undefi
 /**
  * Determine if a child can use a platform:
  * - "allowed" — child meets the minimum age
- * - "needs_approval" — child is under age but parent can override
- * - "blocked" — child is under age and no override is possible
+ * - "needs_consent" — child meets age for a platform with child accounts,
+ *    parent needs to consent to data sharing (NOT override age)
+ * - "blocked" — child is under the platform's minimum age. OmnID cannot
+ *    override a platform's own age requirements.
+ * - "parent_blocked" — parent explicitly blocked this platform
  */
 export function canChildUsePlatform(
   child: ChildAccount,
   platformId: string
-): "allowed" | "needs_approval" | "blocked" | "parent_blocked" {
+): "allowed" | "needs_consent" | "blocked" | "parent_blocked" {
   const rule = getPlatformAgeRule(platformId);
   if (!rule) return "allowed";
 
   const age = getChildAge(child);
 
-  // Check if parent already approved this platform
+  // Check if parent already consented to data sharing for this platform
   const perm = child.platformPermissions.find((p) => p.platformId === platformId);
   if (perm?.allowed) return "allowed";
 
   // Parent explicitly blocked this platform
   if (perm && !perm.allowed) return "parent_blocked";
 
+  // Child meets the platform's age requirement
   if (age >= rule.minAge) return "allowed";
-  if (rule.parentOverrideAllowed) return "needs_approval";
+
+  // Platform has native child/family accounts OR is an OmnID partner —
+  // parent can consent to data sharing (platform handles its own child experience)
+  if (rule.childAccountAvailable || rule.omnidPartner) return "needs_consent";
+
+  // Platform enforces its own age gate — OmnID cannot override it
   return "blocked";
 }
 

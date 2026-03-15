@@ -288,8 +288,8 @@ function ChildManager({
                       Approved ({perm.contentLevel})
                     </span>
                   )}
-                  {status === "needs_approval" && !perm?.allowed && (
-                    <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Needs approval</span>
+                  {status === "needs_consent" && !perm?.allowed && (
+                    <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Needs consent</span>
                   )}
                   {status === "parent_blocked" && (
                     <span className="text-[10px] px-2 py-0.5 bg-omn-danger/20 text-omn-danger rounded-full">You blocked</span>
@@ -305,7 +305,7 @@ function ChildManager({
                 <div className="border-t border-omn-border p-4">
                   {status === "blocked" ? (
                     <p className="text-xs text-omn-text">
-                      {child.name} must be {rule.minAge}+ to use {meta.name}. This cannot be overridden.
+                      {meta.name} requires users to be {rule.minAge}+. {child.name} is under this age. OmnID cannot override platform age requirements.
                     </p>
                   ) : (
                     <div>
