@@ -3,30 +3,34 @@ import {
   createWalletClient,
   createPublicClient,
   http,
-  getContractAddress,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { hardhat } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 
 async function main() {
-  console.log("Deploying OmnID contracts...\n");
+  const pk = process.env.PRIVATE_KEY as Hex;
+  if (!pk) throw new Error("Set PRIVATE_KEY in .env");
 
-  // Hardhat default account #0
-  const account = privateKeyToAccount(
-    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-  );
+  console.log("Deploying OmnID contracts to Base Sepolia...\n");
 
+  const account = privateKeyToAccount(pk);
+  console.log("Deployer:", account.address);
+
+  const rpc = "https://sepolia.base.org";
   const walletClient = createWalletClient({
     account,
-    chain: hardhat,
-    transport: http("http://127.0.0.1:8545"),
+    chain: baseSepolia,
+    transport: http(rpc),
   });
 
   const publicClient = createPublicClient({
-    chain: hardhat,
-    transport: http("http://127.0.0.1:8545"),
+    chain: baseSepolia,
+    transport: http(rpc),
   });
+
+  const balance = await publicClient.getBalance({ address: account.address });
+  console.log("Balance:", Number(balance) / 1e18, "ETH\n");
 
   async function deploy(name: string, args: Hex[] = []): Promise<Hex> {
     const artifact = await hre.artifacts.readArtifact(name);
@@ -38,11 +42,12 @@ async function main() {
 
     const hash = await walletClient.sendTransaction({
       data,
-      chain: hardhat,
+      chain: baseSepolia,
     });
+    console.log(`  ${name}: tx ${hash}`);
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     const address = receipt.contractAddress!;
-    console.log(`${name} deployed: ${address}`);
+    console.log(`  ${name} deployed: ${address}\n`);
     return address;
   }
 
@@ -75,7 +80,7 @@ async function main() {
     identityRegistry as Hex,
   ]);
 
-  console.log("\n========================================");
+  console.log("========================================");
   console.log("  OmnID Deployment Complete!");
   console.log("========================================");
   console.log(`  IdentityRegistry:     ${identityRegistry}`);
