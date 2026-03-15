@@ -12,7 +12,7 @@ const steps: { key: Step; label: string }[] = [
   { key: "oauth", label: "Sign In" },
   { key: "passkey", label: "Passkey" },
   { key: "phone", label: "Phone (optional)" },
-  { key: "ssn", label: "Identity (optional)" },
+  { key: "ssn", label: "Identity" },
   { key: "complete", label: "Complete" },
 ];
 
@@ -711,7 +711,7 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Step 4: SSN + Age Verification (optional) */}
+      {/* Step 4: SSN + Age Verification (Required) */}
       {currentStep === "ssn" && (
         <div className="space-y-6">
           {/* Privacy Notice */}
@@ -748,7 +748,7 @@ export default function Registration() {
           <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold text-omn-heading">Verify Your Identity</h2>
-              <span className="text-xs px-2 py-0.5 bg-omn-border rounded-full text-omn-text">Optional</span>
+              <span className="text-xs px-2 py-0.5 bg-omn-accent/20 rounded-full text-omn-accent">Required</span>
             </div>
             <p className="text-sm text-omn-text mb-1">
               Enter your SSN to verify your identity using Zero-Knowledge Proofs.
@@ -882,12 +882,6 @@ export default function Registration() {
             {!verifying && !ssnPerson && (
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setCurrentStep("phone")} className="px-4 py-2 bg-omn-surface border border-omn-border rounded-lg text-sm text-omn-text hover:text-omn-heading transition-colors">Back</button>
-                <button
-                  onClick={skipToComplete}
-                  className="px-4 py-2 text-sm text-omn-text hover:text-omn-heading transition-colors"
-                >
-                  Skip — finish setup
-                </button>
               </div>
             )}
           </div>
