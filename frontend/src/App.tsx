@@ -11,6 +11,8 @@ import Pro from "./pages/Pro";
 import Trading from "./pages/Trading";
 import Faucet from "./pages/Faucet";
 import PartnerDemo from "./pages/PartnerDemo";
+import Partners from "./pages/Partners";
+import PartnerDocs from "./pages/PartnerDocs";
 import Children from "./pages/Children";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
@@ -165,6 +167,7 @@ function useNavItems() {
     { to: "/course", label: "Academy" },
     { to: "/pro", label: "Pro" },
     { to: "/children", label: "Children" },
+    { to: "/partners", label: "Partners" },
     { to: "/demo", label: "Demo" },
   ];
   return items;
@@ -319,6 +322,8 @@ function App() {
           <Route path="/course/:lessonId" element={<Lesson />} />
           <Route path="/pro" element={<Pro />} />
           <Route path="/children" element={<Children />} />
+          <Route path="/partners" element={<Partners />} />
+          <Route path="/partners/docs" element={<PartnerDocs />} />
           <Route path="/demo" element={<PartnerDemo />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />

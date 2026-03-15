@@ -5,6 +5,7 @@ import oauthRoutes from "./routes/oauth.js";
 import plaidRoutes from "./routes/plaid.js";
 import faucetRoutes from "./routes/faucet.js";
 import identityRoutes from "./routes/identity.js";
+import partnerRoutes from "./routes/partner.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,6 +50,7 @@ app.use(oauthRoutes);
 app.use(plaidRoutes);
 app.use(faucetRoutes);
 app.use(identityRoutes);
+app.use(partnerRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {
