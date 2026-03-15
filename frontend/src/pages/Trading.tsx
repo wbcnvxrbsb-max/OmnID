@@ -77,6 +77,13 @@ export default function Trading() {
   const [browseChainId, setBrowseChainId] = useState<number | "all">("all");
   const [browseSearch, setBrowseSearch] = useState("");
 
+  // ─── Transfer form ───
+  const [transferTo, setTransferTo] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferChainId, setTransferChainId] = useState(84532);
+  const [transferSending, setTransferSending] = useState(false);
+  const [transferResult, setTransferResult] = useState<{ hash?: string; error?: string } | null>(null);
+
   // ─── Funding sources ───
   const [fundingSources, setFundingSources] = useState<PaymentMethod[]>([]);
   const [selectedFundingId, setSelectedFundingId] = useState<string | null>(null);
@@ -206,6 +213,34 @@ export default function Trading() {
       pushActivity("Imported crypto wallet", "WL", "bg-indigo-600");
     } catch {
       setImportError("Invalid seed phrase. Check your words and try again.");
+    }
+  }
+
+  async function handleTransfer() {
+    if (!walletAddress || !transferTo.match(/^0x[0-9a-fA-F]{40}$/) || !transferAmount) return;
+    setTransferSending(true);
+    setTransferResult(null);
+    try {
+      const chain = SUPPORTED_CHAINS.find((c) => c.id === transferChainId);
+      if (!chain) throw new Error("Invalid chain");
+      const { parseEther } = await import("viem");
+      const client = makeWalletClient(chain);
+      const hash = await client.sendTransaction({
+        to: transferTo as `0x${string}`,
+        value: parseEther(transferAmount),
+        chain,
+      });
+      setTransferResult({ hash });
+      pushActivity(`Sent ${transferAmount} ETH to ${transferTo.slice(0, 8)}...`, "TX", "bg-omn-accent");
+      setTransferAmount("");
+      // Refresh balances
+      if (walletAddress) {
+        getNativeBalances(walletAddress).then(setBalances);
+      }
+    } catch (e: any) {
+      setTransferResult({ error: e?.message ?? "Transfer failed" });
+    } finally {
+      setTransferSending(false);
     }
   }
 
@@ -785,6 +820,85 @@ export default function Trading() {
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    {/* Send / Transfer */}
+                    <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
+                      <h2 className="text-lg font-semibold text-omn-heading mb-1">Send Crypto</h2>
+                      <p className="text-xs text-omn-text mb-4">Transfer native tokens to any address</p>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-omn-text mb-1 block">Chain</label>
+                          <select
+                            value={transferChainId}
+                            onChange={(e) => setTransferChainId(Number(e.target.value))}
+                            className="w-full text-sm bg-omn-bg border border-omn-border rounded-lg px-3 py-2 text-omn-heading focus:outline-none focus:border-omn-primary"
+                          >
+                            {SUPPORTED_CHAINS.map((c) => {
+                              const meta = CHAIN_META[c.id];
+                              const bal = balances[c.id];
+                              return (
+                                <option key={c.id} value={c.id}>
+                                  {meta?.name ?? c.name} {bal ? `(${Number(bal.formatted).toFixed(4)} ${bal.symbol})` : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-omn-text mb-1 block">Recipient Address</label>
+                          <input
+                            type="text"
+                            value={transferTo}
+                            onChange={(e) => setTransferTo(e.target.value.trim())}
+                            placeholder="0x..."
+                            className="w-full text-sm bg-omn-bg border border-omn-border rounded-lg px-3 py-2 text-omn-heading font-mono focus:outline-none focus:border-omn-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-omn-text mb-1 block">Amount ({SUPPORTED_CHAINS.find((c) => c.id === transferChainId)?.nativeCurrency.symbol ?? "ETH"})</label>
+                          <input
+                            type="number"
+                            value={transferAmount}
+                            onChange={(e) => setTransferAmount(e.target.value)}
+                            placeholder="0.01"
+                            step="0.001"
+                            min="0"
+                            className="w-full text-sm bg-omn-bg border border-omn-border rounded-lg px-3 py-2 text-omn-heading font-mono focus:outline-none focus:border-omn-primary"
+                          />
+                        </div>
+
+                        <button
+                          onClick={handleTransfer}
+                          disabled={transferSending || !transferTo.match(/^0x[0-9a-fA-F]{40}$/) || !transferAmount || Number(transferAmount) <= 0}
+                          className="w-full py-2.5 bg-gradient-to-r from-omn-primary to-omn-accent text-white rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-omn-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {transferSending ? "Sending..." : "Send"}
+                        </button>
+
+                        {transferResult?.hash && (
+                          <div className="bg-omn-success/10 border border-omn-success/30 rounded-lg p-3">
+                            <p className="text-xs text-omn-success font-medium mb-1">Transaction sent!</p>
+                            <a
+                              href={`https://${transferChainId === 84532 ? "sepolia.basescan.org" : transferChainId === 1 ? "etherscan.io" : transferChainId === 137 ? "polygonscan.com" : transferChainId === 42161 ? "arbiscan.io" : "basescan.org"}/tx/${transferResult.hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-mono text-omn-accent hover:text-omn-primary break-all"
+                            >
+                              {transferResult.hash} {"\u2197"}
+                            </a>
+                          </div>
+                        )}
+
+                        {transferResult?.error && (
+                          <div className="bg-omn-danger/10 border border-omn-danger/30 rounded-lg p-3">
+                            <p className="text-xs text-omn-danger">{transferResult.error}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
