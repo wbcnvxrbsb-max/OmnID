@@ -696,10 +696,10 @@ export default function Registration() {
               Continue
             </button>
             <button
-              onClick={skipToComplete}
+              onClick={() => setCurrentStep("ssn")}
               className="px-4 py-2 text-sm text-omn-text hover:text-omn-heading transition-colors"
             >
-              Skip remaining steps
+              Skip phone
             </button>
           </div>
         </div>
