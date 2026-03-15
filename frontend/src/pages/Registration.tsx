@@ -443,12 +443,15 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Step 2: Passkey (WebAuthn) */}
+      {/* Step 2: Passkey (WebAuthn) — Required */}
       {currentStep === "passkey" && (
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-omn-heading mb-2">Create Your Passkey</h2>
-          <p className="text-sm text-omn-text mb-6">
-            A passkey replaces passwords. It's stored securely on your device and can't be phished.
+          <p className="text-sm text-omn-text mb-1">
+            Every OmnID account requires a passkey. It replaces passwords and is used to sign in.
+          </p>
+          <p className="text-xs text-omn-accent mb-6">
+            Required — you'll need this passkey to sign in to OmnID.
           </p>
 
           <div className="space-y-4 mb-6">
@@ -467,6 +470,8 @@ export default function Registration() {
               </div>
               {passkeyRegistered ? (
                 <p className="text-sm text-omn-success font-medium">Passkey registered</p>
+              ) : passkeyLoading ? (
+                <p className="text-sm text-omn-primary font-medium animate-pulse">Waiting for your device...</p>
               ) : (
                 <p className="text-sm text-omn-text">Use your fingerprint, face, or device PIN</p>
               )}
@@ -498,7 +503,7 @@ export default function Registration() {
                   }}
                   className="text-xs text-omn-text hover:text-omn-danger mt-3 transition-colors"
                 >
-                  Remove passkey
+                  Re-create passkey
                 </button>
               </div>
             ) : passkeySupported ? (
@@ -507,9 +512,8 @@ export default function Registration() {
                   setPasskeyLoading(true);
                   setPasskeyError("");
                   try {
-                    const username = googleUser?.name || googleUser?.email || prompt("Enter your name for the passkey:") || "OmnID User";
+                    const username = googleUser?.name || googleUser?.email || "OmnID User";
                     await createPasskey(username);
-                    // createPasskey stores the credential ID in localStorage
                     const storedId = localStorage.getItem("omnid-passkey") ?? "";
                     setPasskeyRegistered(true);
                     setPasskeyCredentialId(storedId);
@@ -519,27 +523,27 @@ export default function Registration() {
                     }
                     pushActivity("Passkey registered via WebAuthn", "PK", "bg-purple-600");
                   } catch (e: any) {
-                    setPasskeyError(e?.message ?? "Failed to create passkey.");
+                    setPasskeyError(e?.message ?? "Failed to create passkey. Please try again.");
                   } finally {
                     setPasskeyLoading(false);
                   }
                 }}
                 disabled={passkeyLoading}
-                className="w-full flex items-center gap-4 p-4 rounded-lg border border-omn-border hover:border-omn-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-4 p-4 rounded-lg border border-omn-primary/50 bg-omn-primary/5 hover:border-omn-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="w-10 h-10 bg-omn-primary rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0">PK</div>
                 <div className="text-left flex-1">
                   <p className="text-sm font-medium text-omn-heading">
-                    {passkeyLoading ? "Waiting for device..." : "Register with Passkey"}
+                    {passkeyLoading ? "Waiting for device..." : "Create Passkey Now"}
                   </p>
                   <p className="text-xs text-omn-text">Uses your device biometrics or PIN</p>
                 </div>
               </button>
             ) : (
-              <div className="bg-omn-accent/10 border border-omn-accent/30 rounded-lg p-4">
-                <p className="text-sm text-omn-accent font-medium">Passkeys are not supported in this browser.</p>
+              <div className="bg-omn-danger/10 border border-omn-danger/30 rounded-lg p-4">
+                <p className="text-sm text-omn-danger font-medium">Passkeys are not supported in this browser.</p>
                 <p className="text-xs text-omn-text mt-1">
-                  Try using Chrome, Safari, or Edge on a device with biometric support. You can skip this step.
+                  Please use Chrome, Safari, or Edge on a device with biometric support to register.
                 </p>
               </div>
             )}
@@ -553,11 +557,15 @@ export default function Registration() {
             <button onClick={() => setCurrentStep("oauth")} className="px-4 py-2 bg-omn-surface border border-omn-border rounded-lg text-sm text-omn-text hover:text-omn-heading transition-colors">Back</button>
             <button
               onClick={() => setCurrentStep("phone")}
-              className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors"
+              disabled={!passkeyRegistered}
+              className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue
             </button>
           </div>
+          {!passkeyRegistered && (
+            <p className="mt-2 text-xs text-omn-text">Create a passkey to continue</p>
+          )}
         </div>
       )}
 
