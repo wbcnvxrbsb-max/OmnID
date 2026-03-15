@@ -60,7 +60,7 @@ function UserButton() {
       to="/register"
       className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors"
     >
-      Sign In
+      Register
     </NavLink>
   );
 }
@@ -129,19 +129,47 @@ function WalletButton() {
   );
 }
 
-const navItems = [
-  { to: "/", label: "Dashboard" },
-  { to: "/register", label: "Register" },
-  { to: "/accounts", label: "Accounts" },
-  { to: "/reputation", label: "Reputation" },
-  { to: "/payments", label: "Payments" },
-  { to: "/trading", label: "Trading" },
-  { to: "/faucet", label: "Faucet" },
-  { to: "/course", label: "Academy" },
-  { to: "/pro", label: "Pro" },
-  { to: "/children", label: "Children" },
-  { to: "/demo", label: "Demo" },
-];
+function useNavItems() {
+  const user = getGoogleUser();
+  const items = [
+    { to: "/", label: "Dashboard" },
+    ...(!user ? [{ to: "/register", label: "Register" }] : []),
+    { to: "/accounts", label: "Accounts" },
+    { to: "/reputation", label: "Reputation" },
+    { to: "/payments", label: "Payments" },
+    { to: "/trading", label: "Trading" },
+    { to: "/faucet", label: "Faucet" },
+    { to: "/course", label: "Academy" },
+    { to: "/pro", label: "Pro" },
+    { to: "/children", label: "Children" },
+    { to: "/demo", label: "Demo" },
+  ];
+  return items;
+}
+
+function NavBar() {
+  const navItems = useNavItems();
+  return (
+    <div className="hidden md:flex items-center gap-0.5">
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.to === "/"}
+          className={({ isActive }) =>
+            `px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
+              isActive
+                ? "bg-omn-primary/15 text-omn-primary-light"
+                : "text-omn-text hover:text-omn-heading hover:bg-white/[0.04]"
+            }`
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </div>
+  );
+}
 
 function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
   const [authenticating, setAuthenticating] = useState(false);
@@ -231,24 +259,7 @@ function App() {
               Omn<span className="bg-gradient-to-r from-omn-primary to-omn-accent bg-clip-text text-transparent">ID</span>
             </span>
           </NavLink>
-          <div className="hidden md:flex items-center gap-0.5">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-omn-primary/15 text-omn-primary-light"
-                      : "text-omn-text hover:text-omn-heading hover:bg-white/[0.04]"
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
+          <NavBar />
           <div className="flex items-center gap-3">
             <WalletButton />
             <div className="w-px h-5 bg-omn-border" />
