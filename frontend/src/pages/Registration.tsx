@@ -273,9 +273,6 @@ export default function Registration() {
     setCurrentStep("complete");
   }
 
-  function skipToComplete() {
-    setCurrentStep("complete");
-  }
 
   return (
     <div>
