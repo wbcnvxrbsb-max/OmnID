@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold text-omn-heading mb-2">Privacy Policy</h1>
-      <p className="text-sm text-omn-text mb-8">Last updated: March 15, 2026</p>
+      <p className="text-sm text-omn-text mb-8">Last updated: March 16, 2026</p>
 
       <div className="space-y-8">
         {/* Intro */}
@@ -15,6 +15,11 @@ export default function PrivacyPolicy() {
             how we store it, and your rights regarding that data. This policy applies to all users of the OmnID website and
             services, including the OmnID mobile application (when available).
           </p>
+          <p className="text-sm text-omn-text mt-3">
+            <span className="font-medium text-omn-heading">Beta/Testnet Notice:</span> OmnID is currently operating in
+            beta/testnet mode on the Base Sepolia testnet. Features, data practices, and integrations described in this policy
+            may change as the service develops. No real monetary transactions are processed during the testnet phase.
+          </p>
         </div>
 
         {/* What We Collect */}
@@ -24,8 +29,10 @@ export default function PrivacyPolicy() {
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
               <h3 className="text-sm font-semibold text-omn-heading mb-2">Identity Information</h3>
               <ul className="space-y-1.5 text-sm text-omn-text">
-                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Name, email address, and profile picture (from Google OAuth or other supported OAuth providers)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Name (given name, family name, display name), email address, and profile picture (from Google OAuth)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Date of birth, gender, phone number, mailing address, organization, and job title (from Google People API, when available in your Google profile)</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Phone number (optional, for multi-factor authentication via Firebase)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Account data from other supported OAuth providers (Facebook, GitHub, Discord, Spotify) including name and email</li>
               </ul>
             </div>
 
@@ -45,6 +52,7 @@ export default function PrivacyPolicy() {
               <ul className="space-y-1.5 text-sm text-omn-text">
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Connected platform profiles, ratings, reviews, and transaction history (auto-imported with your consent)</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Reputation scores and platform-specific metrics</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Gmail scanning:</span> With your consent, we request read-only access to your Gmail (via the Gmail API) to detect which third-party platforms you use by searching for emails from known platform domains. We read only message metadata (sender domain) for platform detection purposes -- we do not read, store, or process email body content.</span></li>
               </ul>
             </div>
 
@@ -61,9 +69,10 @@ export default function PrivacyPolicy() {
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
               <h3 className="text-sm font-semibold text-omn-heading mb-2">Device Data</h3>
               <ul className="space-y-1.5 text-sm text-omn-text">
-                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Passkey credential IDs (for passwordless authentication via WebAuthn)</li>
-                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Encrypted wallet mnemonic (AES-256-GCM encrypted)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Passkey credential IDs (for passwordless authentication via WebAuthn) -- stored as an array in your browser's localStorage on your device only; passkey credential IDs are not synced to the cloud</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Encrypted wallet mnemonic (AES-256-GCM encrypted; see Wallet Encryption section below for details)</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Browser type, device type, and IP address (collected automatically)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Cached data: cryptocurrency and stock price caches (stored temporarily in localStorage for performance)</li>
               </ul>
             </div>
 
@@ -160,19 +169,23 @@ export default function PrivacyPolicy() {
           <div className="space-y-3">
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
               <h3 className="text-sm font-semibold text-omn-heading mb-1">Browser localStorage</h3>
-              <p className="text-sm text-omn-text">Encrypted where sensitive. Stored on your device only.</p>
+              <p className="text-sm text-omn-text">Your primary data store. Wallet mnemonics are encrypted before storage. Other data (profile information, platform connections, activity logs, payment methods) is stored in localStorage in unencrypted form, accessible only within your browser's same-origin sandbox.</p>
             </div>
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-omn-heading mb-1">Firebase Firestore</h3>
-              <p className="text-sm text-omn-text">Synced for cross-device access, secured by authentication rules.</p>
+              <h3 className="text-sm font-semibold text-omn-heading mb-1">Firebase Firestore (Cloud Sync)</h3>
+              <p className="text-sm text-omn-text">The following data is synced to Google Cloud (Firebase Firestore) for cross-device access: Google profile data, detected platforms, linked profiles, payment methods, transfer history, registration providers, Pro subscription status, parental control data, activity logs, and your encrypted wallet mnemonic. This cloud data is secured by Firebase authentication rules but is not end-to-end encrypted (except for the wallet mnemonic, which is encrypted before upload). Passkey credential IDs are NOT synced to the cloud.</p>
             </div>
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
               <h3 className="text-sm font-semibold text-omn-heading mb-1">Base Sepolia Blockchain (Testnet) / Base Mainnet (Future)</h3>
-              <p className="text-sm text-omn-text">Only cryptographic hashes are stored on-chain -- no personal information. On-chain data is immutable and cannot be deleted.</p>
+              <p className="text-sm text-omn-text">The following cryptographic hashes are stored on-chain: (1) a keccak256 hash of your SSN, (2) a keccak256 hash of your name and email combined, and (3) a recovery wallet address. These hashes cannot be reversed to reveal the original data. On-chain data is immutable and cannot be deleted.</p>
             </div>
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-omn-heading mb-1">Wallet Encryption</h3>
-              <p className="text-sm text-omn-text">Wallet mnemonics are encrypted with AES-256-GCM before storage.</p>
+              <h3 className="text-sm font-semibold text-omn-heading mb-1">Wallet Encryption Details</h3>
+              <p className="text-sm text-omn-text">Wallet mnemonics are encrypted using AES-256-GCM. The encryption key is derived from your Google email address using PBKDF2 with 100,000 iterations, SHA-256 hashing, and a fixed application-level salt. A random 12-byte initialization vector (IV) is generated for each encryption operation. The encrypted mnemonic (IV + ciphertext) is stored in localStorage and synced to Firestore. The plaintext mnemonic is removed from storage after encryption.</p>
+            </div>
+            <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-omn-heading mb-1">Session Security</h3>
+              <p className="text-sm text-omn-text">Your session is automatically locked after 15 minutes of inactivity (no mouse, keyboard, touch, or scroll activity). When locked, you must re-authenticate with your passkey to continue using the application. This timeout cannot be configured by the user.</p>
             </div>
           </div>
         </div>
@@ -186,7 +199,7 @@ export default function PrivacyPolicy() {
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never sell personal data to third parties</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never "share" personal information for cross-context behavioral advertising</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never share personal information without explicit consent</li>
-              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never store unencrypted sensitive data in the cloud</li>
+              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never store unencrypted wallet mnemonics or raw SSNs in the cloud (wallet mnemonics are encrypted with AES-256-GCM before cloud sync; profile data synced to Firestore is protected by Firebase authentication rules)</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never use children's data for behavioral advertising or targeted marketing</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never use reputation scores as consumer reports under the FCRA</li>
             </ul>
@@ -199,8 +212,8 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-omn-text mb-3">OmnID integrates with the following third-party services. Each service has its own privacy policy that governs your data when processed by that service:</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-omn-bg border border-omn-border rounded-lg p-3">
-              <p className="text-sm font-medium text-omn-heading">Google OAuth</p>
-              <p className="text-xs text-omn-text">Authentication and identity verification. Receives: access to your Google profile (name, email, picture).</p>
+              <p className="text-sm font-medium text-omn-heading">Google OAuth + People API + Gmail API</p>
+              <p className="text-xs text-omn-text">Authentication, identity verification, and platform detection. Receives: access to your Google profile (name, email, picture, birthday, gender, phone, address, organization) via the People API, and read-only Gmail access to detect platform accounts by scanning sender domains. Google's Identity Services script may set cookies in your browser.</p>
             </div>
             <div className="bg-omn-bg border border-omn-border rounded-lg p-3">
               <p className="text-sm font-medium text-omn-heading">Stripe</p>
@@ -225,6 +238,27 @@ export default function PrivacyPolicy() {
           </div>
         </div>
 
+        {/* Cookies and Tracking Technologies */}
+        <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-omn-heading mb-4">Cookies and Tracking Technologies</h2>
+          <div className="space-y-3 text-sm text-omn-text">
+            <p>
+              OmnID itself does not set HTTP cookies. Instead, we use browser localStorage to store application data
+              on your device (see "How We Store Data" above). However, the following third-party scripts loaded by
+              our application may set their own cookies:
+            </p>
+            <ul className="space-y-1.5">
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Google Identity Services</span> (accounts.google.com/gsi/client): May set authentication and session cookies in your browser when you sign in with Google. These cookies are governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-omn-primary hover:text-omn-primary-light">Google's Privacy Policy</a>.</span></li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Firebase</span>: May set cookies for authentication session management.</span></li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Stripe</span>: May set cookies when the payment interface is loaded for fraud prevention.</span></li>
+            </ul>
+            <p>
+              We do not use cookies for behavioral advertising, analytics, or cross-site tracking. You can manage
+              cookies through your browser settings, but disabling cookies set by Google may prevent you from signing in.
+            </p>
+          </div>
+        </div>
+
         {/* SSN Specific Disclosure */}
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-omn-heading mb-4">SSN Specific Disclosure</h2>
@@ -235,11 +269,18 @@ export default function PrivacyPolicy() {
             </p>
             <p>
               Your SSN is hashed using the <span className="font-mono text-omn-accent">keccak256</span> cryptographic hash function
-              entirely within your browser before any network transmission occurs. Only the resulting hash is stored on-chain.
+              entirely within your browser before any network transmission occurs. Only the resulting hash is transmitted to our
+              backend server and stored on-chain.
+            </p>
+            <p>
+              During on-chain identity registration, your name and email address are sent to our backend server over an
+              encrypted (TLS) connection. The server computes a keccak256 hash of your name and email combined and stores
+              only this hash on-chain. Your name and email are not stored on our backend server beyond the duration of the
+              registration request.
             </p>
             <p>
               The raw SSN exists only in browser memory for a matter of seconds during the verification step and is
-              cleared from memory immediately after hashing.
+              cleared from the application state immediately after hashing.
             </p>
             <p>
               For parent/child verification, both the parent's and child's SSNs are verified through the same secure
@@ -372,8 +413,10 @@ export default function PrivacyPolicy() {
             </p>
             <p>
               Notifications will be sent without unreasonable delay, and no later than the timeframes required by applicable
-              law (e.g., 60 days for most states, 72 hours for GDPR). Notifications will include the nature of the breach,
-              the types of data involved, and steps you can take to protect yourself.
+              law (e.g., 60 days for most states, 72 hours for GDPR where applicable). Notifications will be sent to the
+              email address associated with your account and will include the nature of the breach, the types of data involved,
+              and steps you can take to protect yourself. During the current beta/testnet phase, breach notifications will be
+              sent via the email address you provided during Google OAuth sign-in.
             </p>
           </div>
         </div>
@@ -420,7 +463,7 @@ export default function PrivacyPolicy() {
             <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
               <h3 className="text-sm font-semibold text-omn-heading mb-2">Categories of Personal Information Collected (Past 12 Months)</h3>
               <ul className="space-y-1.5">
-                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Identifiers:</span> Name, email, phone number, SSN hash, wallet addresses</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Identifiers:</span> Name, email, phone number, SSN hash, wallet addresses, date of birth, mailing address</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Financial Information:</span> Bank account details (via Plaid), payment card info (via Stripe), crypto balances and transaction history</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Internet/Network Activity:</span> Activity logs, connected platforms, browser/device info</li>
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Sensitive Personal Information:</span> Social Security Number (hashed only), government ID verification</li>
@@ -461,7 +504,7 @@ export default function PrivacyPolicy() {
             <ul className="space-y-1.5">
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>All marketing or promotional emails will include a clear opt-out / unsubscribe mechanism.</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>We will honor opt-out requests within 10 business days.</li>
-              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>All emails will accurately identify OmnID as the sender and include our physical mailing address.</li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>All emails will accurately identify OmnID as the sender and include our physical mailing address (see Contact section below).</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Transactional emails (security alerts, account changes, payment receipts) are not subject to opt-out as they are required for service operation.</li>
             </ul>
           </div>
@@ -488,12 +531,14 @@ export default function PrivacyPolicy() {
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-omn-heading mb-4">EU Residents (GDPR)</h2>
           <p className="text-sm text-omn-text mb-3">
-            If you are a resident of the European Union, the following applies:
+            If you are a resident of the European Economic Area (EEA), the United Kingdom, or Switzerland, the following applies:
           </p>
           <ul className="space-y-2 text-sm text-omn-text">
-            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Legal Basis:</span> We process your data based on your explicit consent.</span></li>
-            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Data Processing Location:</span> Your data is processed in the United States.</span></li>
-            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Your Rights:</span> You have the right to access, rectify, erase, restrict processing, port your data, and object to processing.</span></li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Legal Basis:</span> We process your data based on your explicit consent (Article 6(1)(a) GDPR). For sensitive data (SSN hash), we rely on your explicit consent under Article 9(2)(a).</span></li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Data Processing Location:</span> Your data is processed and stored in the United States (Google Cloud / Firebase infrastructure). By using the Service, you consent to the transfer of your data to the United States. We rely on your explicit consent as the transfer mechanism under Article 49(1)(a) GDPR.</span></li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Your Rights:</span> You have the right to access, rectify, erase, restrict processing, port your data, object to processing, and withdraw consent at any time without affecting the lawfulness of prior processing.</span></li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Right to Lodge a Complaint:</span> You have the right to lodge a complaint with your local data protection supervisory authority.</span></li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">Data Controller:</span> OmnID is the data controller. For GDPR inquiries, contact <a href="mailto:privacy@omnid.app" className="text-omn-primary hover:text-omn-primary-light">privacy@omnid.app</a>.</span></li>
           </ul>
         </div>
 
@@ -526,6 +571,11 @@ export default function PrivacyPolicy() {
                 <span>Accessibility: <a href="mailto:accessibility@omnid.app" className="text-omn-primary hover:text-omn-primary-light transition-colors">accessibility@omnid.app</a></span>
               </li>
             </ul>
+            <p className="mt-3 text-xs text-omn-text">
+              <span className="font-medium text-omn-heading">Note:</span> During the beta/testnet phase, all contact
+              email addresses above are actively monitored. A physical mailing address will be published here before
+              the Service transitions to production/mainnet, as required by the CAN-SPAM Act.
+            </p>
           </div>
         </div>
 

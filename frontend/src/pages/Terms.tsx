@@ -4,7 +4,7 @@ export default function Terms() {
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold text-omn-heading mb-2">Terms of Service</h1>
-      <p className="text-sm text-omn-text mb-8">Last updated: March 15, 2026</p>
+      <p className="text-sm text-omn-text mb-8">Last updated: March 16, 2026</p>
 
       <div className="space-y-8">
         {/* Acceptance of Terms */}
@@ -30,8 +30,8 @@ export default function Terms() {
             </p>
             <p>Key features of the Service include:</p>
             <ul className="space-y-1.5">
-              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Unified digital identity with SSN-based verification</li>
-              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Platform data aggregation and reputation portability ($1 fee per reputation transfer)</li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Unified digital identity with SSN-based verification (SSN is hashed client-side and never stored in raw form)</li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Platform data aggregation (including Gmail-based platform detection with your consent) and reputation portability ($1 fee per reputation transfer)</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Parent/child account management with content controls</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Cryptocurrency wallet, cross-chain swaps, and crypto transfers</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Payment bridging (use crypto where only traditional cards are accepted)</li>
@@ -63,6 +63,7 @@ export default function Terms() {
             <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>A passkey (WebAuthn) is required for account security and authentication.</li>
             <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Only one account per person is permitted.</li>
             <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>You are responsible for maintaining the security of your account credentials, passkeys, and wallet seed phrases.</li>
+            <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Your session is automatically locked after 15 minutes of inactivity. You must re-authenticate with your passkey to resume using the Service.</li>
             <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>You must notify us immediately of any unauthorized use of your account.</li>
           </ul>
         </div>
@@ -116,8 +117,9 @@ export default function Terms() {
           <div className="bg-omn-bg border border-omn-border rounded-lg p-4 space-y-3 text-sm text-omn-text">
             <p>
               Data written to the blockchain is <span className="font-medium text-omn-heading">immutable</span>. While your account
-              can be deactivated, blockchain hashes cannot be deleted or modified. No personal information is stored on-chain --
-              only cryptographic hashes that cannot be reversed to reveal your identity data.
+              can be deactivated, blockchain hashes cannot be deleted or modified. The following data is stored on-chain:
+              (1) a keccak256 hash of your SSN, (2) a keccak256 hash of your name and email combined, and (3) a recovery
+              wallet address. These are one-way cryptographic hashes that cannot be reversed to reveal your personal data.
             </p>
             <p>
               You acknowledge that blockchain transactions are irreversible. Once a transaction is confirmed on-chain,
@@ -308,7 +310,10 @@ export default function Terms() {
             </p>
             <p>
               In no event shall OmnID's total aggregate liability exceed the greater of (a) the amount you have paid OmnID
-              in the 12 months preceding the claim, or (b) one hundred dollars ($100).
+              in the 12 months preceding the claim, or (b) one hundred dollars ($100). This limitation of liability does not
+              apply to liability arising from OmnID's gross negligence or willful misconduct in handling your sensitive
+              personal information (including SSN hashes and financial data), or to the extent such limitation is prohibited
+              by applicable law.
             </p>
           </div>
         </div>
@@ -339,6 +344,7 @@ export default function Terms() {
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>The arbitrator's decision shall be final and binding.</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Class Action Waiver:</span> You agree that any dispute resolution proceedings will be conducted only on an individual basis and not in a class, consolidated, or representative action.</li>
               <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span className="font-medium text-omn-heading">Small Claims Exception:</span> Either party may bring an individual action in small claims court for disputes within the court's jurisdictional amount.</li>
+              <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span><span><span className="font-medium text-omn-heading">30-Day Opt-Out Right:</span> You may opt out of this arbitration agreement by sending written notice to <a href="mailto:legal@omnid.app" className="text-omn-primary hover:text-omn-primary-light">legal@omnid.app</a> within 30 days of first accepting these Terms (subject line: "Arbitration Opt-Out"). Your notice must include your name, email address associated with your OmnID account, and a clear statement that you wish to opt out of the arbitration agreement. If you opt out, disputes will be resolved in the state or federal courts located in California. Opting out of arbitration will not affect your ability to use the Service.</span></li>
             </ul>
           </div>
         </div>
@@ -421,6 +427,11 @@ export default function Terms() {
                 <span>Security/identity theft: <a href="mailto:security@omnid.app" className="text-omn-primary hover:text-omn-primary-light transition-colors">security@omnid.app</a></span>
               </li>
             </ul>
+            <p className="mt-3 text-xs text-omn-text">
+              <span className="font-medium text-omn-heading">Note:</span> During the beta/testnet phase, all contact
+              email addresses above are actively monitored. A physical mailing address will be published here before
+              the Service transitions to production/mainnet.
+            </p>
           </div>
         </div>
 
