@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPublicClient, http, formatEther } from "viem";
 import { baseSepolia } from "viem/chains";
 import { getAddress, hasWallet } from "../wallet";
+import { API_BASE } from "../api/config";
 
 const BASE_SEPOLIA_RPC = "https://sepolia.base.org";
 
@@ -80,7 +81,7 @@ export default function Faucet() {
     setSending(true);
     setResult(null);
     try {
-      const res = await window.fetch("/.netlify/functions/faucet", {
+      const res = await window.fetch(`${API_BASE}/api/faucet`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: recipientAddress }),

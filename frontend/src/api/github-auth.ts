@@ -1,3 +1,5 @@
+import { API_BASE } from "./config";
+
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined;
 
 const STORAGE_KEY = "omnid-github-user";
@@ -33,7 +35,7 @@ export function startGitHubOAuth(): void {
 
 /** Sends the OAuth code to the Netlify function, stores the result in localStorage. */
 export async function handleGitHubCallback(code: string): Promise<GitHubUser> {
-  const res = await fetch("/.netlify/functions/github-auth", {
+  const res = await fetch(`${API_BASE}/api/auth/github`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),

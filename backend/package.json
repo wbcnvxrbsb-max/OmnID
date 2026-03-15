@@ -1,0 +1,24 @@
+{
+  "name": "bosettlement-backend",
+  "version": "1.0.0",
+  "description": "OmnID backend API server",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node server.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "plaid": "^28.0.0",
+    "stripe": "^17.7.0",
+    "viem": "^2.23.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

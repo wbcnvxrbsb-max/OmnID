@@ -1,3 +1,5 @@
+import { API_BASE } from "./config";
+
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID as string | undefined;
 
 const STORAGE_KEY = "omnid-discord-user";
@@ -29,7 +31,7 @@ export function startDiscordOAuth(): void {
 
 /** Sends the OAuth code to the Netlify function, stores the result in localStorage. */
 export async function handleDiscordCallback(code: string): Promise<DiscordUser> {
-  const res = await fetch("/.netlify/functions/discord-auth", {
+  const res = await fetch(`${API_BASE}/api/auth/discord`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),

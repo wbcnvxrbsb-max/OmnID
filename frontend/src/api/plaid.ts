@@ -7,6 +7,8 @@
  * Account data is cached in localStorage for the session.
  */
 
+import { API_BASE } from "./config";
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface PlaidAccount {
@@ -40,7 +42,7 @@ const STORAGE_KEY = "omnid-bank-accounts";
 
 /** Request a Plaid Link token from the backend */
 export async function getLinkToken(userId: string): Promise<string> {
-  const res = await fetch("/.netlify/functions/plaid-link-token", {
+  const res = await fetch(`${API_BASE}/api/plaid/link-token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ client_user_id: userId }),
@@ -59,7 +61,7 @@ export async function getLinkToken(userId: string): Promise<string> {
 export async function exchangePublicToken(
   publicToken: string
 ): Promise<{ accounts: PlaidAccount[]; transactions: PlaidTransaction[] }> {
-  const res = await fetch("/.netlify/functions/plaid-exchange", {
+  const res = await fetch(`${API_BASE}/api/plaid/exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ public_token: publicToken }),

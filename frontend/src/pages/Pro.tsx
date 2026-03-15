@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getGoogleUser } from "../google-auth";
+import { API_BASE } from "../api/config";
 
 const features = [
   {
@@ -54,7 +55,7 @@ export default function Pro() {
     setVerifying(true);
     setError(null);
     try {
-      const res = await fetch("/.netlify/functions/verify-session", {
+      const res = await fetch(`${API_BASE}/api/verify-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
@@ -78,7 +79,7 @@ export default function Pro() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/.netlify/functions/create-checkout", {
+      const res = await fetch(`${API_BASE}/api/create-checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,3 +1,5 @@
+import { API_BASE } from "./config";
+
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined;
 
 const STORAGE_KEY = "omnid-spotify-user";
@@ -30,7 +32,7 @@ export function startSpotifyOAuth(): void {
 
 /** Sends the OAuth code to the Netlify function, stores the result in localStorage. */
 export async function handleSpotifyCallback(code: string): Promise<SpotifyUser> {
-  const res = await fetch("/.netlify/functions/spotify-auth", {
+  const res = await fetch(`${API_BASE}/api/auth/spotify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
