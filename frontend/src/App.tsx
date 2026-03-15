@@ -56,12 +56,24 @@ function UserButton() {
   }
 
   return (
-    <NavLink
-      to="/register"
+    <button
+      onClick={async () => {
+        if (hasPasskey()) {
+          try {
+            await authenticateWithPasskey();
+            window.location.reload();
+          } catch {
+            // passkey failed — fall back to register
+            window.location.href = "/register";
+          }
+        } else {
+          window.location.href = "/register";
+        }
+      }}
       className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors"
     >
-      Register
-    </NavLink>
+      Sign In
+    </button>
   );
 }
 
@@ -133,7 +145,7 @@ function useNavItems() {
   const user = getGoogleUser();
   const items = [
     { to: "/", label: "Dashboard" },
-    ...(!user ? [{ to: "/register", label: "Register" }] : []),
+    // Register page accessible via URL but not in nav
     { to: "/accounts", label: "Accounts" },
     { to: "/reputation", label: "Reputation" },
     { to: "/payments", label: "Payments" },
