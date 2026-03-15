@@ -5,6 +5,10 @@ import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detec
 import { pushActivity } from "../activity";
 import { setupRecaptcha, sendVerificationCode, verifyCode, cleanupRecaptcha } from "../api/firebase";
 import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../api/passkeys";
+import { hasWallet, createNewWallet, getAddress, makeWalletClient, makePublicClient, SUPPORTED_CHAINS } from "../wallet";
+import { keccak256, encodePacked } from "viem";
+import { getAddresses } from "../contracts/addresses";
+import { IdentityRegistryAbi } from "../contracts/abis";
 
 type Step = "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
@@ -268,9 +272,74 @@ export default function Registration() {
     }, 1500);
   }
 
-  function handleConfirmAge() {
+  const [registering, setRegistering] = useState(false);
+  const [chainError, setChainError] = useState("");
+
+  async function handleConfirmAge() {
     setAgeConfirmed(true);
-    setCurrentStep("complete");
+    setRegistering(true);
+    setChainError("");
+
+    try {
+      // Auto-create wallet if user doesn't have one
+      if (!hasWallet()) {
+        createNewWallet();
+        pushActivity("Wallet auto-created for on-chain identity", "WL", "bg-blue-600");
+      }
+
+      const address = getAddress();
+      if (!address) throw new Error("No wallet address");
+
+      // Register identity on Base Sepolia
+      const baseSepolia = SUPPORTED_CHAINS.find((c) => c.id === 84532);
+      if (!baseSepolia) throw new Error("Base Sepolia not configured");
+
+      const addrs = getAddresses(84532);
+      const publicClient = makePublicClient(baseSepolia);
+
+      // Check if already registered
+      let alreadyRegistered = false;
+      try {
+        const result = await publicClient.readContract({
+          address: addrs.identityRegistry,
+          abi: IdentityRegistryAbi,
+          functionName: "hasIdentity",
+          args: [address],
+        });
+        alreadyRegistered = !!result;
+      } catch {
+        // Contract call failed — likely no identity yet
+      }
+
+      if (!alreadyRegistered) {
+        // Hash user data for on-chain registration
+        const email = googleUser?.email ?? "";
+        const name = verifiedPerson?.name ?? googleUser?.name ?? "";
+        const metadataHash = keccak256(encodePacked(["string", "string"], [name, email]));
+        const ssnHash = keccak256(encodePacked(["string"], [ssn.replace(/\D/g, "")]));
+
+        const walletClient = makeWalletClient(baseSepolia);
+        const hash = await walletClient.writeContract({
+          address: addrs.identityRegistry,
+          abi: IdentityRegistryAbi,
+          functionName: "createIdentity",
+          args: [metadataHash, address, ssnHash],
+          chain: baseSepolia,
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash });
+        pushActivity("Identity registered on Base Sepolia blockchain", "BC", "bg-emerald-600");
+      } else {
+        pushActivity("Identity already on-chain — skipped registration", "BC", "bg-emerald-600");
+      }
+    } catch (e: any) {
+      console.warn("On-chain registration failed:", e);
+      setChainError(e?.message ?? "On-chain registration failed. You can retry later.");
+      // Don't block completion — on-chain is best-effort for now
+    } finally {
+      setRegistering(false);
+      setCurrentStep("complete");
+    }
   }
 
 
@@ -863,10 +932,14 @@ export default function Registration() {
 
                 <button
                   onClick={handleConfirmAge}
-                  className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors"
+                  disabled={registering}
+                  className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Confirm &amp; Complete Setup
+                  {registering ? "Registering on blockchain..." : "Confirm & Complete Setup"}
                 </button>
+                {chainError && (
+                  <p className="text-xs text-omn-danger mt-2">{chainError}</p>
+                )}
               </div>
             )}
 
