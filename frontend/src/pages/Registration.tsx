@@ -146,6 +146,32 @@ export default function Registration() {
     pushActivity("Disconnected Google account", "GO", "bg-blue-600");
   }
 
+  // Auto-trigger passkey creation when entering the passkey step
+  useEffect(() => {
+    if (currentStep === "passkey" && !passkeyRegistered && passkeySupported && !passkeyLoading) {
+      (async () => {
+        setPasskeyLoading(true);
+        setPasskeyError("");
+        try {
+          const username = googleUser?.name || googleUser?.email || "OmnID User";
+          await createPasskey(username);
+          const storedId = localStorage.getItem("omnid-passkey") ?? "";
+          setPasskeyRegistered(true);
+          setPasskeyCredentialId(storedId);
+          setPasskeyType("webauthn");
+          if (!linkedProviders.includes("passkey")) {
+            setLinkedProviders((prev) => [...prev, "passkey"]);
+          }
+          pushActivity("Passkey registered via WebAuthn", "PK", "bg-purple-600");
+        } catch (e: any) {
+          setPasskeyError(e?.message ?? "Failed to create passkey. Please try again.");
+        } finally {
+          setPasskeyLoading(false);
+        }
+      })();
+    }
+  }, [currentStep, passkeyRegistered]);
+
   // Set up reCAPTCHA when on the phone step
   useEffect(() => {
     if (currentStep === "phone" && !phoneVerified) {
