@@ -142,10 +142,8 @@ function WalletButton() {
 }
 
 function useNavItems() {
-  const user = getGoogleUser();
   const items = [
     { to: "/", label: "Dashboard" },
-    // Register page accessible via URL but not in nav
     { to: "/accounts", label: "Accounts" },
     { to: "/reputation", label: "Reputation" },
     { to: "/payments", label: "Payments" },

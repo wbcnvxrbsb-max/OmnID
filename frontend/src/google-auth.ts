@@ -205,16 +205,13 @@ export async function googleSignIn(): Promise<GoogleUser> {
 
           localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
 
-          // Pull existing cloud data then start auto-sync
-          try {
-            await loadFromFirestore(user.email);
-            autoSync(user.email);
-          } catch (_firestoreErr) {
-            // Firestore sync is best-effort; don't block sign-in
-            console.warn("Firestore sync failed:", _firestoreErr);
-          }
-
+          // Resolve immediately — don't block sign-in on Firestore
           resolve(user);
+
+          // Fire-and-forget: pull cloud data then start auto-sync
+          loadFromFirestore(user.email)
+            .then(() => autoSync(user.email))
+            .catch((err) => console.warn("Firestore sync failed:", err));
         } catch (e) {
           reject(e);
         }

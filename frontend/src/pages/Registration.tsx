@@ -118,17 +118,12 @@ export default function Registration() {
           setLinkedProviders((prev) => [...prev, "google"]);
         }
         pushActivity(`Signed in with Google (${user.email})`, "GO", "bg-blue-600");
-        // Scan Gmail for platforms
+        // Scan Gmail in background — don't block sign-in
         setScanning(true);
         setDetectedPlatforms([]);
-        try {
-          await detectPlatforms((found) => {
-            setDetectedPlatforms((prev) => [...prev, found]);
-          });
-        } catch {
-          // Gmail scan is best-effort — don't block sign-in
-        }
-        setScanning(false);
+        detectPlatforms((found) => {
+          setDetectedPlatforms((prev) => [...prev, found]);
+        }).catch(() => {}).finally(() => setScanning(false));
       } catch (e: any) {
         setGoogleError(e?.message ?? "Google sign-in failed");
       } finally {
