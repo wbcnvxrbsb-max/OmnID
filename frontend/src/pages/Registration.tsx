@@ -8,9 +8,10 @@ import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../
 import { API_BASE } from "../api/config";
 import { keccak256, toHex } from "viem";
 
-type Step = "oauth" | "passkey" | "phone" | "ssn" | "complete";
+type Step = "consent" | "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
 const steps: { key: Step; label: string }[] = [
+  { key: "consent", label: "Privacy" },
   { key: "oauth", label: "Sign In" },
   { key: "passkey", label: "Passkey" },
   { key: "phone", label: "Phone (optional)" },
@@ -33,7 +34,8 @@ function formatSSN(raw: string): string {
 }
 
 export default function Registration() {
-  const [currentStep, setCurrentStep] = usePersistedState<Step>("reg-step", "oauth");
+  const [currentStep, setCurrentStep] = usePersistedState<Step>("reg-step", "consent");
+  const [privacyConsent, setPrivacyConsent] = usePersistedState("reg-privacy-consent", false);
   const [linkedProviders, setLinkedProviders] = usePersistedState<string[]>("reg-providers", []);
   const [passkeyType, setPasskeyType] = usePersistedState<string | null>("reg-passkey", null);
   const [phone, setPhone] = usePersistedState("reg-phone", "");
@@ -359,6 +361,97 @@ export default function Registration() {
         ))}
       </div>
 
+      {/* Step 0: Privacy Consent */}
+      {currentStep === "consent" && (
+        <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-omn-heading mb-4">
+            Privacy & Data Collection
+          </h2>
+          <p className="text-sm text-omn-text mb-6">
+            Before you create your OmnID, here is exactly what data we collect, how we use it, and what we never do.
+          </p>
+
+          <div className="space-y-4 mb-6">
+            {/* Identity */}
+            <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-omn-heading mb-2">Identity</h3>
+              <ul className="space-y-1.5 text-sm text-omn-text">
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Name, email, and birthday (from Google sign-in)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>SSN hash (your raw SSN is never stored)</li>
+              </ul>
+            </div>
+
+            {/* Platform Data */}
+            <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-omn-heading mb-2">Platform Data</h3>
+              <ul className="space-y-1.5 text-sm text-omn-text">
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Connected platform profiles (Google, Facebook, etc.)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Ratings, reviews, and reputation (auto-imported)</li>
+              </ul>
+            </div>
+
+            {/* Device */}
+            <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-omn-heading mb-2">Device</h3>
+              <ul className="space-y-1.5 text-sm text-omn-text">
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Passkey credential ID (for passwordless sign-in)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Encrypted wallet (stored on your device only)</li>
+              </ul>
+            </div>
+
+            {/* On-Chain */}
+            <div className="bg-omn-bg border border-omn-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-omn-heading mb-2">On-Chain</h3>
+              <ul className="space-y-1.5 text-sm text-omn-text">
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Identity hash and reputation scores (public on blockchain)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>No personal information is ever stored on-chain</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* What we do NOT do */}
+          <div className="bg-red-900/10 border border-red-700/20 rounded-lg p-4 mb-6">
+            <h3 className="text-sm font-semibold text-omn-danger mb-2">What OmnID Never Does</h3>
+            <ul className="space-y-1.5 text-sm text-omn-text">
+              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never stores your raw SSN</li>
+              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never sells data to third parties</li>
+              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never shares personal info without your explicit consent</li>
+            </ul>
+          </div>
+
+          {/* Data deletion */}
+          <div className="bg-omn-bg border border-omn-border rounded-lg p-4 mb-6">
+            <p className="text-sm text-omn-text">
+              <span className="font-medium text-omn-heading">Data deletion:</span> You can delete all your data at any time from the Dashboard.
+            </p>
+          </div>
+
+          {/* Consent checkbox */}
+          <label className="flex items-start gap-3 mb-6 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={privacyConsent}
+              onChange={(e) => setPrivacyConsent(e.target.checked)}
+              className="mt-1 w-4 h-4 rounded border-omn-border accent-omn-primary shrink-0"
+            />
+            <span className="text-sm text-omn-text">
+              I understand and consent to OmnID's data collection as described above
+            </span>
+          </label>
+
+          <button
+            onClick={() => setCurrentStep("oauth")}
+            disabled={!privacyConsent}
+            className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continue
+          </button>
+          {!privacyConsent && (
+            <p className="mt-2 text-xs text-omn-text">Please review and accept the privacy terms to continue</p>
+          )}
+        </div>
+      )}
+
       {/* Step 1: OAuth — this is all you need */}
       {currentStep === "oauth" && (
         <div className="bg-omn-surface border border-omn-border rounded-xl p-6">
@@ -488,13 +581,16 @@ export default function Registration() {
 
           </div>
 
-          <button
-            onClick={() => setCurrentStep("passkey")}
-            disabled={linkedProviders.length === 0}
-            className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Continue
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setCurrentStep("consent")} className="px-4 py-2 bg-omn-surface border border-omn-border rounded-lg text-sm text-omn-text hover:text-omn-heading transition-colors">Back</button>
+            <button
+              onClick={() => setCurrentStep("passkey")}
+              disabled={linkedProviders.length === 0}
+              className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continue
+            </button>
+          </div>
           {linkedProviders.length === 0 && (
             <p className="mt-2 text-xs text-omn-text">Sign in with at least one provider to continue</p>
           )}

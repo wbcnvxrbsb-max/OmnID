@@ -5,6 +5,8 @@ import ScoreGauge from "../components/ScoreGauge";
 import { getActivity, formatTimeAgo, type ActivityEvent } from "../activity";
 import { getGoogleUser } from "../google-auth";
 import { getParentData } from "../data/parental-controls";
+import { deleteUserData, stopAutoSync } from "../api/firestore";
+import { clearPasskey } from "../api/passkeys";
 
 // Demo user: Henry Thompson (890-12-3456) - most complete profile
 const demoSSN = "890-12-3456";
@@ -181,6 +183,50 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Danger Zone — Delete My Data */}
+      <div className="mt-12 border border-red-500/40 rounded-xl p-6 bg-red-500/5">
+        <h2 className="text-lg font-semibold text-red-400 mb-2">Delete My Data</h2>
+        <p className="text-sm text-omn-text mb-4">
+          This will permanently delete all your OmnID data from this device, the cloud, and deactivate your on-chain identity. This cannot be undone.
+        </p>
+        <button
+          onClick={async () => {
+            const ok = window.confirm(
+              "Are you sure you want to delete ALL your OmnID data? This cannot be undone."
+            );
+            if (!ok) return;
+
+            // Stop any active Firestore syncing first
+            stopAutoSync();
+
+            // Delete Firestore document if user is signed in
+            const user = getGoogleUser();
+            if (user?.email) {
+              try {
+                await deleteUserData(user.email);
+              } catch (err) {
+                console.warn("Failed to delete Firestore data:", err);
+              }
+            }
+
+            // Clear all omnid-* keys from localStorage
+            const keysToRemove = Object.keys(localStorage).filter((k) =>
+              k.startsWith("omnid-")
+            );
+            keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+            // Remove passkeys
+            clearPasskey();
+
+            // Full page redirect to registration
+            window.location.href = "/register";
+          }}
+          className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          Delete Everything
+        </button>
       </div>
     </div>
   );

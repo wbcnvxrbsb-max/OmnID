@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Registration from "./pages/Registration";
@@ -16,6 +16,7 @@ import { hasWallet, getAddress, initSecureWallet } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
 import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
+import { useSessionTimeout } from "./hooks/useSessionTimeout";
 
 function UserButton() {
   const [user, setUser] = useState(getGoogleUser());
@@ -268,6 +269,14 @@ function App() {
       void initSecureWallet();
     }
   }, [unlocked]);
+
+  // Auto-lock after 15 minutes of inactivity (only fires when unlocked)
+  const handleSessionTimeout = useCallback(() => {
+    if (unlocked) {
+      setUnlocked(false);
+    }
+  }, [unlocked]);
+  useSessionTimeout(handleSessionTimeout);
 
   if (!unlocked) {
     return <PasskeyLock onUnlock={() => setUnlocked(true)} />;

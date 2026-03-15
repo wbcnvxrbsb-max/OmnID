@@ -7,6 +7,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   type Firestore,
 } from "firebase/firestore";
 
@@ -76,6 +77,13 @@ export async function loadFromFirestore(userId: string): Promise<void> {
       localStorage.setItem(key, data[key]);
     }
   }
+}
+
+/**
+ * Delete the user's Firestore document at users/{userId}.
+ */
+export async function deleteUserData(userId: string): Promise<void> {
+  await deleteDoc(doc(db, "users", userId));
 }
 
 // ---------- autoSync ----------
