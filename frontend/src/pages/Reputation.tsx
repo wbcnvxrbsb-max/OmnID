@@ -48,6 +48,30 @@ export default function Reputation() {
         and verifiable
       </p>
 
+      {/* On-Chain Reputation Status */}
+      <div className="bg-omn-primary/5 border border-omn-primary/20 rounded-xl p-4 mb-8 flex items-center gap-4">
+        <div className="w-10 h-10 bg-omn-primary/20 rounded-lg flex items-center justify-center shrink-0">
+          <span className="text-omn-primary font-bold text-sm">{"ON"}</span>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-omn-heading">On-Chain Reputation</p>
+            <span className="text-[10px] px-2 py-0.5 bg-omn-success/20 text-omn-success rounded-full">Active</span>
+          </div>
+          <p className="text-xs text-omn-text mt-0.5">
+            Your reputation data is recorded on Base Sepolia. Scores are submitted on-chain when you connect platforms.
+          </p>
+        </div>
+        <a
+          href="https://sepolia.basescan.org/address/0xd33422490a03d411365465a56188c40614f745ef"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs px-3 py-1.5 bg-omn-primary/20 text-omn-primary rounded-full hover:bg-omn-primary/30 transition-colors whitespace-nowrap"
+        >
+          View on BaseScan
+        </a>
+      </div>
+
       {/* Composite Score */}
       <div className="bg-omn-surface border border-omn-border rounded-xl p-8 mb-8 text-center">
         <h2 className="text-lg font-semibold text-omn-heading mb-4">

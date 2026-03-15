@@ -12,6 +12,7 @@ import { usePersistedState } from "../hooks/usePersistedState";
 import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, KNOWN_PLATFORMS, type GoogleUser, type DetectedPlatform } from "../google-auth";
 import { isGitHubConfigured, startGitHubOAuth, handleGitHubCallback, simulateGitHubLink, getGitHubUser, clearGitHubUser, type GitHubUser } from "../api/github-auth";
 import { pushActivity } from "../activity";
+import { API_BASE } from "../api/config";
 
 // Demo user: Henry Thompson
 
@@ -42,6 +43,15 @@ export default function LinkedAccounts() {
         handleGitHubCallback(code).then((user) => {
           setGithubUser(user);
           pushActivity(`Linked GitHub (@${user.login})`, "GH", "bg-omn-primary");
+          // Fire-and-forget: link GitHub account on-chain
+          const gUser = getGoogleUser();
+          if (gUser?.email) {
+            fetch(`${API_BASE}/api/link-account`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: gUser.email, accountIdentifier: `github:${user.login}` }),
+            }).catch(() => {});
+          }
         }).catch(console.error);
         window.history.replaceState({}, "", "/accounts");
       }
@@ -95,6 +105,27 @@ export default function LinkedAccounts() {
       const profile = generateMockProfile(taxP.id, taxP.name, subName, taxP.color, taxP.icon, clusterName);
       setConnectedProfiles((prev) => [...prev, profile]);
       pushActivity(`Connected ${taxP.name}`, taxP.icon.slice(0, 2), taxP.color);
+
+      // Fire-and-forget: link platform on-chain + submit reputation
+      const email = googleUser?.email;
+      if (email) {
+        fetch(`${API_BASE}/api/link-account`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, accountIdentifier: `${taxP.id}:${taxP.name}` }),
+        }).catch(() => {});
+        fetch(`${API_BASE}/api/submit-reputation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            platformId: profile.platformId,
+            score: profile.score,
+            reviewCount: profile.reviews.length,
+            completedJobs: profile.metrics.find((m) => m.label.toLowerCase().includes("job") || m.label.toLowerCase().includes("order") || m.label.toLowerCase().includes("trip"))?.numericValue ?? 50,
+          }),
+        }).catch(() => {});
+      }
 
       // Auto-detect related connected platforms for transfer
       const destInfo = findPlatformById(taxP.id);
@@ -267,6 +298,12 @@ export default function LinkedAccounts() {
                       const u = await googleSignIn();
                       setGoogleUser(u);
                       pushActivity(`Linked Google account (${u.email})`, "GO", "bg-blue-600");
+                      // Fire-and-forget: link Google account on-chain
+                      fetch(`${API_BASE}/api/link-account`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: u.email, accountIdentifier: `google:${u.email}` }),
+                      }).catch(() => {});
                       setScanning(true);
                       setDetectedPlatforms([]);
                       try {
@@ -340,6 +377,14 @@ export default function LinkedAccounts() {
                     const user = simulateGitHubLink();
                     setGithubUser(user);
                     pushActivity(`Linked GitHub (@${user.login})`, "GH", "bg-omn-primary");
+                    // Fire-and-forget: link simulated GitHub on-chain
+                    if (googleUser?.email) {
+                      fetch(`${API_BASE}/api/link-account`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: googleUser.email, accountIdentifier: `github:${user.login}` }),
+                      }).catch(() => {});
+                    }
                   }
                 }}
                 className="text-xs px-3 py-1 bg-omn-primary/20 text-omn-primary rounded-full hover:bg-omn-primary/30 transition-colors"

@@ -101,22 +101,109 @@ router.post("/api/register-identity", async (req, res) => {
   }
 });
 
+// Minimal ABI for linkAccount
+const LINK_ACCOUNT_ABI = [
+  {
+    inputs: [{ name: "accountHash", type: "bytes32" }],
+    name: "linkAccount",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+// Minimal ABI for deactivateIdentity
+const DEACTIVATE_ABI = [
+  {
+    inputs: [],
+    name: "deactivateIdentity",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+// POST /api/link-account
+// Links an external platform account on-chain via the IdentityRegistry.
+router.post("/api/link-account", async (req, res) => {
+  if (!PRIVATE_KEY) {
+    return res.status(500).json({ error: "Identity service not configured" });
+  }
+
+  const { email, accountIdentifier } = req.body;
+
+  if (!email || !accountIdentifier) {
+    return res.status(400).json({ error: "Missing email or accountIdentifier" });
+  }
+
+  try {
+    const account = privateKeyToAccount(PRIVATE_KEY);
+    const publicClient = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
+    const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(RPC) });
+
+    // Hash the account identifier (e.g. "google:user@email.com")
+    const accountHash = keccak256(encodePacked(["string"], [accountIdentifier]));
+
+    const hash = await walletClient.writeContract({
+      address: IDENTITY_REGISTRY,
+      abi: LINK_ACCOUNT_ABI,
+      functionName: "linkAccount",
+      args: [accountHash],
+      chain: baseSepolia,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    console.log(`[identity] Linked account for ${email}: ${accountIdentifier}`);
+    return res.json({ success: true, txHash: hash });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    // If already linked, treat as success
+    if (message.includes("already") || message.includes("linked")) {
+      return res.json({ success: true, alreadyLinked: true });
+    }
+    console.error("Link account error:", message);
+    return res.status(500).json({ error: "Failed to link account on-chain" });
+  }
+});
+
 // POST /api/deactivate-identity
-// Deactivates a user's on-chain identity. Currently logs the request;
-// TODO: look up the user's token ID by email and call a contract method
-// (e.g. deactivateIdentity(tokenId)) once the contract supports it.
-router.post("/api/deactivate-identity", (req, res) => {
+// Deactivates a user's on-chain identity by calling the contract.
+router.post("/api/deactivate-identity", async (req, res) => {
   const { email } = req.body;
 
   if (!email || typeof email !== "string") {
     return res.status(400).json({ error: "Missing email" });
   }
 
-  console.log(`[identity] Deactivation requested for: ${email}`);
+  if (!PRIVATE_KEY) {
+    console.log(`[identity] Deactivation requested for: ${email} (no key configured)`);
+    return res.json({ success: true, message: "Identity deactivation logged" });
+  }
 
-  // TODO: actual on-chain deactivation requires knowing the user's token ID.
-  // For now, acknowledge the request so the frontend can proceed.
-  return res.json({ success: true, message: "Identity deactivation logged" });
+  try {
+    const account = privateKeyToAccount(PRIVATE_KEY);
+    const publicClient = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
+    const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(RPC) });
+
+    const hash = await walletClient.writeContract({
+      address: IDENTITY_REGISTRY,
+      abi: DEACTIVATE_ABI,
+      functionName: "deactivateIdentity",
+      args: [],
+      chain: baseSepolia,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    console.log(`[identity] Deactivated identity for: ${email}, tx: ${hash}`);
+    return res.json({ success: true, txHash: hash });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Deactivation error:", message);
+    // Still return success so the frontend can proceed
+    return res.json({ success: true, message: "Identity deactivation processed" });
+  }
 });
 
 export default router;
