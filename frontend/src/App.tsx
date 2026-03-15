@@ -183,14 +183,21 @@ function NavBar() {
           to={item.to}
           end={item.to === "/"}
           className={({ isActive }) =>
-            `px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
+            `relative px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 ${
               isActive
                 ? "bg-omn-primary/15 text-omn-primary-light"
                 : "text-omn-text hover:text-omn-heading hover:bg-white/[0.04]"
             }`
           }
         >
-          {item.label}
+          {({ isActive }) => (
+            <>
+              {item.label}
+              {isActive && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-omn-primary-light" />
+              )}
+            </>
+          )}
         </NavLink>
       ))}
     </div>
@@ -290,10 +297,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-omn-bg">
-      <nav className="border-b border-omn-border/60 bg-omn-bg/80 backdrop-blur-xl sticky top-0 z-50">
+      <nav className="bg-omn-bg/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
           <NavLink to="/" className="flex items-center gap-2 group">
-            <div className="w-7 h-7 bg-gradient-to-br from-omn-primary to-omn-accent rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 bg-gradient-to-br from-omn-primary to-omn-accent rounded-lg flex items-center justify-center transition-shadow duration-300 group-hover:shadow-[0_0_14px_rgba(59,130,246,0.45)]">
               <span className="text-xs font-bold text-white">O</span>
             </div>
             <span className="text-lg font-bold text-omn-heading group-hover:text-white transition-colors">
@@ -307,6 +314,8 @@ function App() {
             <UserButton />
           </div>
         </div>
+        {/* Gradient bottom border */}
+        <div className="h-px bg-gradient-to-r from-omn-primary/20 via-transparent to-omn-accent/20" />
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -330,7 +339,9 @@ function App() {
         </Routes>
       </main>
 
-      <footer className="border-t border-omn-border/60 mt-12">
+      <footer className="mt-12">
+        {/* Gradient top border */}
+        <div className="h-px bg-gradient-to-r from-omn-primary/20 via-transparent to-omn-accent/20" />
         <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-center gap-4 text-xs text-omn-text">
           <NavLink to="/privacy" className="hover:text-omn-primary transition-colors">Privacy Policy</NavLink>
           <span className="text-omn-border">|</span>

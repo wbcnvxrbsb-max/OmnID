@@ -44,7 +44,7 @@ export default function Dashboard() {
 
       {/* Identity Card + Score */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-gradient-to-br from-omn-primary/10 via-omn-surface to-omn-accent/10 border border-omn-border rounded-xl p-6">
+        <div className="lg:col-span-2 bg-gradient-to-br from-omn-primary/10 via-omn-surface to-omn-accent/10 gradient-animate border border-omn-border rounded-xl p-6 shadow-[0_0_40px_rgba(59,130,246,0.06)]">
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -112,7 +112,7 @@ export default function Dashboard() {
           { label: "Auto-Transfers", value: transferHistory.length.toString(), color: "text-omn-primary-light", link: "/accounts" },
           ...(childCount > 0 ? [{ label: "Children", value: childCount.toString(), color: "text-omn-pro", link: "/children" }] : []),
         ].map((stat) => (
-          <Link key={stat.label} to={stat.link} className="bg-omn-surface border border-omn-border rounded-xl p-5 hover:border-omn-primary transition-colors">
+          <Link key={stat.label} to={stat.link} className="bg-omn-surface border border-omn-border rounded-xl p-5 card-hover">
             <p className="text-omn-text text-xs mb-1">{stat.label}</p>
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
           </Link>
