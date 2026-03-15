@@ -19,6 +19,7 @@ import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
 import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
 import { useSessionTimeout } from "./hooks/useSessionTimeout";
+import CookieConsent from "./components/CookieConsent";
 
 function UserButton() {
   const [user, setUser] = useState(getGoogleUser());
@@ -329,8 +330,12 @@ function App() {
           <NavLink to="/privacy" className="hover:text-omn-primary transition-colors">Privacy Policy</NavLink>
           <span className="text-omn-border">|</span>
           <NavLink to="/terms" className="hover:text-omn-primary transition-colors">Terms of Service</NavLink>
+          <span className="text-omn-border">|</span>
+          <NavLink to="/privacy#ccpa" className="hover:text-omn-primary transition-colors">Do Not Sell My Info</NavLink>
         </div>
       </footer>
+
+      <CookieConsent />
     </div>
   );
 }

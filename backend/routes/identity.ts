@@ -101,4 +101,22 @@ router.post("/api/register-identity", async (req, res) => {
   }
 });
 
+// POST /api/deactivate-identity
+// Deactivates a user's on-chain identity. Currently logs the request;
+// TODO: look up the user's token ID by email and call a contract method
+// (e.g. deactivateIdentity(tokenId)) once the contract supports it.
+router.post("/api/deactivate-identity", (req, res) => {
+  const { email } = req.body;
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ error: "Missing email" });
+  }
+
+  console.log(`[identity] Deactivation requested for: ${email}`);
+
+  // TODO: actual on-chain deactivation requires knowing the user's token ID.
+  // For now, acknowledge the request so the frontend can proceed.
+  return res.json({ success: true, message: "Identity deactivation logged" });
+});
+
 export default router;

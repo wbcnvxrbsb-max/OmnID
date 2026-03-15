@@ -7,6 +7,7 @@ import { getGoogleUser } from "../google-auth";
 import { getParentData } from "../data/parental-controls";
 import { deleteUserData, stopAutoSync } from "../api/firestore";
 import { clearPasskey } from "../api/passkeys";
+import { API_BASE } from "../api/config";
 
 // Demo user: Henry Thompson (890-12-3456) - most complete profile
 const demoSSN = "890-12-3456";
@@ -185,6 +186,50 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Right to Correct — info note */}
+      <div className="mt-12 bg-omn-surface border border-omn-border rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-omn-heading mb-2">Update Your Information</h2>
+        <p className="text-sm text-omn-text">
+          To update your information, sign out and re-register with updated details, or contact{" "}
+          <a href="mailto:privacy@omnid.app" className="text-omn-primary hover:text-omn-primary-light transition-colors underline">
+            privacy@omnid.app
+          </a>.
+        </p>
+      </div>
+
+      {/* Your Data — Export / Portability */}
+      <div className="mt-6 bg-omn-surface border border-omn-border rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-omn-heading mb-2">Your Data</h2>
+        <p className="text-sm text-omn-text mb-4">
+          Download a copy of all your OmnID data stored on this device. This fulfills your right to data portability under GDPR and your right to know under CCPA.
+        </p>
+        <button
+          onClick={() => {
+            const data: Record<string, unknown> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith("omnid-")) {
+                try {
+                  data[key] = JSON.parse(localStorage.getItem(key)!);
+                } catch {
+                  data[key] = localStorage.getItem(key);
+                }
+              }
+            }
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "omnid-data-export.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="px-5 py-2.5 bg-omn-primary hover:bg-omn-primary-light text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          Download My Data
+        </button>
+      </div>
+
       {/* Danger Zone — Delete My Data */}
       <div className="mt-12 border border-red-500/40 rounded-xl p-6 bg-red-500/5">
         <h2 className="text-lg font-semibold text-red-400 mb-2">Delete My Data</h2>
@@ -208,6 +253,17 @@ export default function Dashboard() {
                 await deleteUserData(user.email);
               } catch (err) {
                 console.warn("Failed to delete Firestore data:", err);
+              }
+
+              // Deactivate on-chain identity (best effort)
+              try {
+                await fetch(`${API_BASE}/api/deactivate-identity`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email: user.email }),
+                });
+              } catch {
+                /* best effort */
               }
             }
 
