@@ -12,7 +12,7 @@ import Trading from "./pages/Trading";
 import Faucet from "./pages/Faucet";
 import PartnerDemo from "./pages/PartnerDemo";
 import Children from "./pages/Children";
-import { hasWallet, getAddress } from "./wallet";
+import { hasWallet, getAddress, initSecureWallet } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
 import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
@@ -261,6 +261,13 @@ function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
 
 function App() {
   const [unlocked, setUnlocked] = useState(() => !hasPasskey());
+
+  // Migrate plaintext wallet mnemonic to encrypted storage on app load
+  useEffect(() => {
+    if (unlocked) {
+      void initSecureWallet();
+    }
+  }, [unlocked]);
 
   if (!unlocked) {
     return <PasskeyLock onUnlock={() => setUnlocked(true)} />;

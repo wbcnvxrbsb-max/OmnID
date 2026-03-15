@@ -29,7 +29,7 @@ export default function Faucet() {
   const [balance, setBalance] = useState<string | null>(null);
   const [recipientBalance, setRecipientBalance] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; txHash?: string; explorer?: string; error?: string; faucetAddress?: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; txHash?: string; explorer?: string; error?: string } | null>(null);
 
   // Use wallet address as default recipient
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function Faucet() {
       if (res.ok) {
         setResult({ success: true, txHash: data.txHash, explorer: data.explorer });
       } else {
-        setResult({ success: false, error: data.error, faucetAddress: data.faucetAddress });
+        setResult({ success: false, error: data.error });
       }
     } catch (e: any) {
       setResult({ success: false, error: e?.message ?? "Request failed" });
@@ -199,11 +199,6 @@ export default function Faucet() {
           {result && !result.success && (
             <div className="bg-omn-danger/10 border border-omn-danger/30 rounded-xl p-4">
               <p className="text-sm font-medium text-omn-danger mb-1">{result.error}</p>
-              {result.faucetAddress && (
-                <p className="text-xs text-omn-text mt-2">
-                  Fund the faucet at: <span className="font-mono text-omn-accent">{result.faucetAddress}</span>
-                </p>
-              )}
             </div>
           )}
         </div>

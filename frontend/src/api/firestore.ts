@@ -36,7 +36,7 @@ const SYNC_KEYS = [
   "omnid-pro-session-id",
   "omnid-parent-data",
   "omnid-activity",
-  "omnid-wallet",
+  "omnid-wallet-enc",
 ] as const;
 
 /**

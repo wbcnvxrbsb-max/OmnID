@@ -45,9 +45,7 @@ router.post("/api/faucet", async (req: Request, res: Response) => {
     const dripWei = parseEther(DRIP_AMOUNT);
     if (balance < dripWei) {
       res.status(503).json({
-        error: "Faucet is empty.",
-        faucetAddress: account.address,
-        balance: formatEther(balance),
+        error: "Faucet does not have enough funds. Please try again later.",
       });
       return;
     }
