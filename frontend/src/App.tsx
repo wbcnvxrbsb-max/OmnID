@@ -15,6 +15,7 @@ import Children from "./pages/Children";
 import { hasWallet, getAddress } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
+import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
 
 function UserButton() {
   const navigate = useNavigate();
@@ -140,7 +141,82 @@ const navItems = [
   { to: "/demo", label: "Demo" },
 ];
 
+function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
+  const [authenticating, setAuthenticating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleAuthenticate() {
+    setAuthenticating(true);
+    setError("");
+    try {
+      await authenticateWithPasskey();
+      onUnlock();
+    } catch (e: any) {
+      setError(e?.message ?? "Authentication failed. Please try again.");
+    } finally {
+      setAuthenticating(false);
+    }
+  }
+
+  // Auto-trigger on mount
+  useEffect(() => {
+    handleAuthenticate();
+  }, []);
+
+  const user = getGoogleUser();
+
+  return (
+    <div className="min-h-screen bg-omn-bg flex items-center justify-center">
+      <div className="w-full max-w-sm text-center p-8">
+        <div className="w-20 h-20 bg-gradient-to-br from-omn-primary to-omn-accent rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <span className="text-3xl font-bold text-white">O</span>
+        </div>
+        <h1 className="text-2xl font-bold text-omn-heading mb-1">
+          Omn<span className="bg-gradient-to-r from-omn-primary to-omn-accent bg-clip-text text-transparent">ID</span>
+        </h1>
+        {user && (
+          <p className="text-sm text-omn-text mb-6">Welcome back, {user.name?.split(" ")[0]}</p>
+        )}
+        {!user && (
+          <p className="text-sm text-omn-text mb-6">Verify your identity to continue</p>
+        )}
+
+        {authenticating ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 bg-omn-primary/15 rounded-full flex items-center justify-center animate-pulse">
+              <svg className="w-6 h-6 text-omn-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 10a2 2 0 1 0 0 4" />
+                <path d="M8.5 8.5a5.5 5.5 0 0 1 9.1 2.3" />
+                <path d="M12 14a5.5 5.5 0 0 1-3.5-5.5" />
+                <path d="M6 6a9 9 0 0 1 14.3 5" />
+              </svg>
+            </div>
+            <p className="text-sm text-omn-primary">Waiting for passkey...</p>
+          </div>
+        ) : (
+          <button
+            onClick={handleAuthenticate}
+            className="w-full py-3 bg-gradient-to-r from-omn-primary to-omn-accent text-white rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-omn-primary/20"
+          >
+            Unlock with Passkey
+          </button>
+        )}
+
+        {error && (
+          <p className="text-xs text-omn-danger mt-4">{error}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [unlocked, setUnlocked] = useState(() => !hasPasskey());
+
+  if (!unlocked) {
+    return <PasskeyLock onUnlock={() => setUnlocked(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-omn-bg">
       <nav className="border-b border-omn-border/60 bg-omn-bg/80 backdrop-blur-xl sticky top-0 z-50">
