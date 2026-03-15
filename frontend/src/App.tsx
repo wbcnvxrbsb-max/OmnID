@@ -18,7 +18,6 @@ import { getGoogleUser, clearGoogleUser } from "./google-auth";
 import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
 
 function UserButton() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(getGoogleUser());
 
   useEffect(() => {
