@@ -56,40 +56,31 @@ function UserButton() {
   }
 
   const [signingIn, setSigningIn] = useState(false);
-  const [noPasskey, setNoPasskey] = useState(false);
+  const [error, setError] = useState("");
 
   return (
     <div className="flex items-center gap-2">
-      {noPasskey ? (
-        <>
-          <span className="text-[10px] text-omn-text">No passkey found</span>
-          <a
-            href="/register"
-            className="px-3 py-1.5 text-xs font-medium text-omn-accent hover:text-omn-primary-light transition-colors"
-          >
-            Create Account
-          </a>
-        </>
-      ) : (
-        <button
-          onClick={async () => {
-            if (!hasPasskey()) {
-              setNoPasskey(true);
-              return;
-            }
-            setSigningIn(true);
-            try {
-              await authenticateWithPasskey();
-              window.location.reload();
-            } catch {
-              setSigningIn(false);
-            }
-          }}
-          disabled={signingIn}
-          className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors disabled:opacity-50"
-        >
-          {signingIn ? "Verifying..." : "Sign In"}
-        </button>
+      <button
+        onClick={async () => {
+          setSigningIn(true);
+          setError("");
+          try {
+            await authenticateWithPasskey();
+            window.location.reload();
+          } catch {
+            setError("No passkey found");
+            setSigningIn(false);
+          }
+        }}
+        disabled={signingIn}
+        className="px-3 py-1.5 text-xs font-medium text-omn-primary hover:text-omn-primary-light transition-colors disabled:opacity-50"
+      >
+        {signingIn ? "Verifying..." : "Sign In"}
+      </button>
+      {error && (
+        <a href="/register" className="text-[10px] text-omn-accent hover:text-omn-primary-light transition-colors">
+          Create Account
+        </a>
       )}
     </div>
   );
