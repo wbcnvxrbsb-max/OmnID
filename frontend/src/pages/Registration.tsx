@@ -508,11 +508,11 @@ export default function Registration() {
                   setPasskeyError("");
                   try {
                     const username = googleUser?.name || googleUser?.email || prompt("Enter your name for the passkey:") || "OmnID User";
-                    const cred = await createPasskey(username);
-                    const idBytes = new Uint8Array(cred.rawId);
-                    const idB64 = btoa(String.fromCharCode(...idBytes));
+                    await createPasskey(username);
+                    // createPasskey stores the credential ID in localStorage
+                    const storedId = localStorage.getItem("omnid-passkey") ?? "";
                     setPasskeyRegistered(true);
-                    setPasskeyCredentialId(idB64);
+                    setPasskeyCredentialId(storedId);
                     setPasskeyType("webauthn");
                     if (!linkedProviders.includes("passkey")) {
                       setLinkedProviders((prev) => [...prev, "passkey"]);

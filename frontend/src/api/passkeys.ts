@@ -10,13 +10,34 @@ const STORAGE_KEY = "omnid-passkey";
 
 /** Relying-party ID — use the production domain when deployed, localhost for dev. */
 function rpId(): string {
-  if (
-    typeof window !== "undefined" &&
-    window.location.hostname === "localhost"
-  ) {
-    return "localhost";
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return "localhost";
+    return host; // works for omnid.netlify.app or any custom domain
   }
   return "omnid.netlify.app";
+}
+
+/** Encode ArrayBuffer to base64url string */
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+/** Decode base64url string to ArrayBuffer */
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,12 +100,12 @@ export async function createPasskey(
       challenge: crypto.getRandomValues(new Uint8Array(32)),
 
       authenticatorSelection: {
-        authenticatorAttachment: "platform",
         residentKey: "preferred",
         userVerification: "preferred",
+        // No authenticatorAttachment — allows both platform and cross-platform
       },
 
-      timeout: 60_000,
+      timeout: 120_000,
     },
   });
 
@@ -94,8 +115,7 @@ export async function createPasskey(
 
   // Persist the credential ID so we can request it during authentication.
   const pkCred = credential as PublicKeyCredential;
-  const idBytes = new Uint8Array(pkCred.rawId);
-  const idB64 = btoa(String.fromCharCode(...idBytes));
+  const idB64 = bufferToBase64url(pkCred.rawId);
   localStorage.setItem(STORAGE_KEY, idB64);
 
   return pkCred;
@@ -117,11 +137,9 @@ export async function authenticateWithPasskey(): Promise<PublicKeyCredential> {
 
   const storedId = localStorage.getItem(STORAGE_KEY);
   if (storedId) {
-    const raw = Uint8Array.from(atob(storedId), (c) => c.charCodeAt(0));
     allowCredentials.push({
-      id: raw.buffer,
+      id: base64urlToBuffer(storedId),
       type: "public-key",
-      transports: ["internal"],
     });
   }
 
@@ -129,9 +147,9 @@ export async function authenticateWithPasskey(): Promise<PublicKeyCredential> {
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
       rpId: rpId(),
-      allowCredentials,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
       userVerification: "preferred",
-      timeout: 60_000,
+      timeout: 120_000,
     },
   });
 
