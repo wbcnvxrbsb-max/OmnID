@@ -155,7 +155,7 @@ export default function Registration() {
         try {
           const username = googleUser?.name || googleUser?.email || "OmnID User";
           await createPasskey(username);
-          const storedId = localStorage.getItem("omnid-passkey") ?? "";
+          const storedId = localStorage.getItem("omnid-passkeys") ?? localStorage.getItem("omnid-passkey") ?? "";
           setPasskeyRegistered(true);
           setPasskeyCredentialId(storedId);
           setPasskeyType("webauthn");
@@ -313,6 +313,7 @@ export default function Registration() {
       setChainError(e?.message ?? "On-chain registration failed. You can retry later.");
     } finally {
       setRegistering(false);
+      localStorage.setItem("omnid-registration-complete", "true");
       setCurrentStep("complete");
     }
   }
@@ -676,7 +677,7 @@ export default function Registration() {
                   try {
                     const username = googleUser?.name || googleUser?.email || "OmnID User";
                     await createPasskey(username);
-                    const storedId = localStorage.getItem("omnid-passkey") ?? "";
+                    const storedId = localStorage.getItem("omnid-passkeys") ?? localStorage.getItem("omnid-passkey") ?? "";
                     setPasskeyRegistered(true);
                     setPasskeyCredentialId(storedId);
                     setPasskeyType("webauthn");

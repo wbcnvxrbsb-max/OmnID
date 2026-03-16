@@ -291,9 +291,10 @@ function App() {
     }
   }, [unlocked]);
 
-  // If unlocked via passkey but no Google user, redirect to register
+  // If unlocked but not fully registered/signed in, redirect to register
   const googleUser = getGoogleUser();
-  const needsSignIn = unlocked && !googleUser && hasPasskey();
+  const registrationComplete = localStorage.getItem("omnid-registration-complete") === "true";
+  const needsSignIn = unlocked && (!googleUser || !registrationComplete);
 
   // Auto-lock after 15 minutes of inactivity (only fires when unlocked)
   const handleSessionTimeout = useCallback(() => {
