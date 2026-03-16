@@ -158,8 +158,16 @@ function WalletButton() {
   );
 }
 
-function useNavItems() {
-  const user = getGoogleUser();
+
+function NavBar() {
+  const [user, setUser] = useState(getGoogleUser());
+  useEffect(() => {
+    const check = () => setUser(getGoogleUser());
+    window.addEventListener("storage", check);
+    const interval = setInterval(check, 1000);
+    return () => { window.removeEventListener("storage", check); clearInterval(interval); };
+  }, []);
+
   const items = [
     { to: "/", label: "Dashboard" },
     ...(!user ? [{ to: "/register", label: "Register" }] : []),
@@ -174,14 +182,10 @@ function useNavItems() {
     { to: "/partners", label: "Partners" },
     { to: "/demo", label: "Demo" },
   ];
-  return items;
-}
 
-function NavBar() {
-  const navItems = useNavItems();
   return (
     <div className="hidden md:flex items-center gap-0.5">
-      {navItems.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
