@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Registration from "./pages/Registration";
 import LinkedAccounts from "./pages/LinkedAccounts";
@@ -45,12 +45,14 @@ function UserButton() {
         <span className="text-xs text-omn-text hidden lg:inline">{user.name?.split(" ")[0]}</span>
         <button
           onClick={() => {
-            // Clear all OmnID data from this device
-            const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith("omnid-"));
+            // Clear session data but keep passkeys (they're device-bound, not session-bound)
+            const keysToRemove = Object.keys(localStorage).filter(
+              (k) => k.startsWith("omnid-") && k !== "omnid-passkeys" && k !== "omnid-passkey" && k !== "omnid-cookie-consent"
+            );
             keysToRemove.forEach((k) => localStorage.removeItem(k));
             clearGoogleUser();
             setUser(null);
-            window.location.href = "/register";
+            window.location.href = "/";
           }}
           className="text-xs text-omn-text hover:text-omn-danger transition-colors ml-1"
           title="Sign out"
@@ -157,8 +159,10 @@ function WalletButton() {
 }
 
 function useNavItems() {
+  const user = getGoogleUser();
   const items = [
     { to: "/", label: "Dashboard" },
+    ...(!user ? [{ to: "/register", label: "Register" }] : []),
     { to: "/accounts", label: "Accounts" },
     { to: "/reputation", label: "Reputation" },
     { to: "/payments", label: "Payments" },
@@ -283,6 +287,10 @@ function App() {
     }
   }, [unlocked]);
 
+  // If unlocked via passkey but no Google user, redirect to register
+  const googleUser = getGoogleUser();
+  const needsSignIn = unlocked && !googleUser && hasPasskey();
+
   // Auto-lock after 15 minutes of inactivity (only fires when unlocked)
   const handleSessionTimeout = useCallback(() => {
     if (unlocked) {
@@ -320,7 +328,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={needsSignIn ? <Navigate to="/register" replace /> : <Dashboard />} />
           <Route path="/register" element={<Registration />} />
           <Route path="/accounts" element={<LinkedAccounts />} />
           <Route path="/reputation" element={<Reputation />} />
