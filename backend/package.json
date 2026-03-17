@@ -11,6 +11,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "firebase-admin": "^13.7.0",
     "plaid": "^28.0.0",
     "stripe": "^17.7.0",
     "viem": "^2.23.2"

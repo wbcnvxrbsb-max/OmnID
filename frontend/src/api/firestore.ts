@@ -38,6 +38,7 @@ const SYNC_KEYS = [
   "omnid-parent-data",
   "omnid-activity",
   "omnid-wallet-enc",
+  "omnid-registration-complete",
 ] as const;
 
 /**

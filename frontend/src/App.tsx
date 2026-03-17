@@ -20,6 +20,8 @@ import { hasWallet, getAddress, initSecureWallet } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
 import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
+import { loadFromFirestore, autoSync } from "./api/firestore";
+import { API_BASE } from "./api/config";
 import { useSessionTimeout } from "./hooks/useSessionTimeout";
 import CookieConsent from "./components/CookieConsent";
 
@@ -73,8 +75,21 @@ function UserButton() {
           setSigningIn(true);
           setError("");
           try {
-            await authenticateWithPasskey();
-            window.location.reload();
+            const { credentialId } = await authenticateWithPasskey();
+            const res = await fetch(`${API_BASE}/api/verify-passkey`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ credentialId }),
+            });
+            const data = await res.json();
+            if (data.verified && data.email) {
+              await loadFromFirestore(data.email);
+              autoSync(data.email);
+              window.location.reload();
+            } else {
+              setError("Passkey not recognized");
+              setSigningIn(false);
+            }
           } catch {
             setError("No passkey found");
             setSigningIn(false);
@@ -220,8 +235,20 @@ function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
     setAuthenticating(true);
     setError("");
     try {
-      await authenticateWithPasskey();
-      onUnlock();
+      const { credentialId } = await authenticateWithPasskey();
+      const res = await fetch(`${API_BASE}/api/verify-passkey`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credentialId }),
+      });
+      const data = await res.json();
+      if (data.verified && data.email) {
+        await loadFromFirestore(data.email);
+        autoSync(data.email);
+        onUnlock();
+      } else {
+        setError("Passkey not recognized. Please register or try again.");
+      }
     } catch (e: any) {
       setError(e?.message ?? "Authentication failed. Please try again.");
     } finally {
@@ -284,7 +311,10 @@ function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
 function App() {
   // Show lock screen if user has registered before (has passkey data or registration flag)
   const [unlocked, setUnlocked] = useState(() => {
-    const hasRegistered = hasPasskey() || localStorage.getItem("omnid-registration-complete") === "true";
+    // Never lock during active registration
+    if (sessionStorage.getItem("omnid-registering") === "true") return true;
+    // Only lock if user has completed registration before
+    const hasRegistered = localStorage.getItem("omnid-registration-complete") === "true";
     return !hasRegistered;
   });
 
@@ -297,8 +327,8 @@ function App() {
 
   // If unlocked but no Google user, redirect to register
   // (Google user existing = at minimum signed in; registration-complete flag is for new users)
-  const googleUser = getGoogleUser();
-  const needsSignIn = unlocked && !googleUser;
+  const [appGoogleUser, setAppGoogleUser] = useState(getGoogleUser());
+  const needsSignIn = unlocked && !appGoogleUser;
 
   // Auto-lock after 15 minutes of inactivity (only fires when unlocked)
   const handleSessionTimeout = useCallback(() => {
@@ -309,7 +339,10 @@ function App() {
   useSessionTimeout(handleSessionTimeout);
 
   if (!unlocked) {
-    return <PasskeyLock onUnlock={() => setUnlocked(true)} />;
+    return <PasskeyLock onUnlock={() => {
+      setAppGoogleUser(getGoogleUser());
+      setUnlocked(true);
+    }} />;
   }
 
   return (

@@ -9,6 +9,26 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+
+// Initialize Firebase Admin (reuse existing app if already initialized)
+if (getApps().length === 0) {
+  // In production, use a service account. For now, use the project ID only
+  // (works when running on Google Cloud or with GOOGLE_APPLICATION_CREDENTIALS)
+  try {
+    initializeApp({ projectId: "omnid-cb415" });
+  } catch {
+    console.warn("[identity] Firebase Admin init failed — passkey persistence will use in-memory only");
+  }
+}
+
+let firestoreDb: FirebaseFirestore.Firestore | null = null;
+try {
+  firestoreDb = getFirestore();
+} catch {
+  console.warn("[identity] Firestore not available — using in-memory passkey registry only");
+}
 
 const router = Router();
 
@@ -230,7 +250,20 @@ router.post("/api/store-passkey", async (req, res) => {
   // Store in memory (and on-chain if possible)
   passkeyRegistry.set(credHash, email);
 
-  // Also try to store on-chain via setPasskey if contract supports it
+  // Persist to Firestore
+  if (firestoreDb) {
+    try {
+      await firestoreDb.collection("passkeys").doc(credHash).set({
+        email,
+        credentialIdPrefix: credentialId.slice(0, 16),
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      console.warn("[identity] Firestore passkey write failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Also try to store on-chain via setPasskeyHash if contract supports it
   if (PRIVATE_KEY) {
     try {
       const account = privateKeyToAccount(PRIVATE_KEY);
@@ -241,12 +274,12 @@ router.post("/api/store-passkey", async (req, res) => {
         address: IDENTITY_REGISTRY,
         abi: [{
           inputs: [{ name: "passkeyHash", type: "bytes32" }],
-          name: "setPasskey",
+          name: "setPasskeyHash",
           outputs: [],
           stateMutability: "nonpayable",
           type: "function",
         }] as const,
-        functionName: "setPasskey",
+        functionName: "setPasskeyHash",
         args: [credHash],
         chain: baseSepolia,
       });
@@ -266,7 +299,7 @@ router.post("/api/store-passkey", async (req, res) => {
 // POST /api/verify-passkey
 // Verifies a passkey credential ID is registered for a user.
 // Called during sign-in after passkey authentication.
-router.post("/api/verify-passkey", (req, res) => {
+router.post("/api/verify-passkey", async (req, res) => {
   const { credentialId } = req.body;
 
   if (!credentialId) {
@@ -274,15 +307,29 @@ router.post("/api/verify-passkey", (req, res) => {
   }
 
   const credHash = keccak256(encodePacked(["string"], [credentialId]));
-  const email = passkeyRegistry.get(credHash);
+
+  // 1. Check in-memory cache
+  let email = passkeyRegistry.get(credHash);
+
+  // 2. Firestore fallback
+  if (!email && firestoreDb) {
+    try {
+      const doc = await firestoreDb.collection("passkeys").doc(credHash).get();
+      if (doc.exists) {
+        email = doc.data()?.email;
+        if (email) passkeyRegistry.set(credHash, email); // populate cache
+      }
+    } catch (err) {
+      console.warn("[identity] Firestore passkey lookup failed:", err instanceof Error ? err.message : err);
+    }
+  }
 
   if (email) {
+    console.log(`[identity] Passkey verified for: ${email}`);
     return res.json({ verified: true, email });
   }
 
-  // For now, if not in registry, still allow (graceful degradation during beta)
-  // In production, this would check the blockchain
-  console.log(`[identity] Passkey not found in registry: ${credentialId.slice(0, 16)}...`);
+  console.log(`[identity] Passkey not found: ${credentialId.slice(0, 16)}...`);
   return res.json({ verified: false });
 });
 

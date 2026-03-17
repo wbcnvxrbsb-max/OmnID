@@ -49,6 +49,14 @@ export default function Registration() {
     age: number;
   } | null>("reg-verified-person", null);
 
+  // Set registration-in-progress flag to prevent passkey lock from engaging mid-registration
+  useEffect(() => {
+    sessionStorage.setItem("omnid-registering", "true");
+    return () => {
+      // Don't clear on unmount — only clear when registration completes
+    };
+  }, []);
+
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpError, setOtpError] = useState("");
@@ -322,6 +330,7 @@ export default function Registration() {
     } finally {
       setRegistering(false);
       localStorage.setItem("omnid-registration-complete", "true");
+      sessionStorage.removeItem("omnid-registering");
       setCurrentStep("complete");
     }
   }
