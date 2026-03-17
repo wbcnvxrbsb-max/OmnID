@@ -108,9 +108,9 @@ export async function loadEncrypted(
     const { iv, data } = JSON.parse(raw) as { iv: string; data: string };
     const key = await deriveKey(passphrase);
     const plainBuf = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: fromBase64(iv) },
+      { name: "AES-GCM", iv: fromBase64(iv) as unknown as BufferSource },
       key,
-      fromBase64(data),
+      fromBase64(data) as unknown as BufferSource,
     );
     return new TextDecoder().decode(plainBuf);
   } catch {

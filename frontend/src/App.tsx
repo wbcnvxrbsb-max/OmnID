@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Registration from "./pages/Registration";
 import LinkedAccounts from "./pages/LinkedAccounts";
@@ -19,7 +19,7 @@ import Terms from "./pages/Terms";
 import { hasWallet, getAddress, initSecureWallet } from "./wallet";
 import { reverseENS } from "./api/ens";
 import { getGoogleUser, clearGoogleUser } from "./google-auth";
-import { hasPasskey, authenticateWithPasskey } from "./api/passkeys";
+import { authenticateWithPasskey } from "./api/passkeys";
 import { loadFromFirestore, autoSync } from "./api/firestore";
 import { API_BASE } from "./api/config";
 import { useSessionTimeout } from "./hooks/useSessionTimeout";

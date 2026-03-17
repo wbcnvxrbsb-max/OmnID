@@ -26,13 +26,6 @@ function formatPhone(raw: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
-function formatSSN(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 9);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
-}
-
 export default function Registration() {
   const [currentStep, setCurrentStep] = usePersistedState<Step>("reg-step", "consent");
   const [privacyConsent, setPrivacyConsent] = usePersistedState("reg-privacy-consent", false);
@@ -40,7 +33,6 @@ export default function Registration() {
   const [passkeyType, setPasskeyType] = usePersistedState<string | null>("reg-passkey", null);
   const [phone, setPhone] = usePersistedState("reg-phone", "");
   const [phoneVerified, setPhoneVerified] = usePersistedState("reg-phone-verified", false);
-  const [verifying, setVerifying] = useState(false);
   const [verifyStage, setVerifyStage] = useState<"idle" | "scanning" | "verifying" | "done">("idle");
   const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
@@ -248,7 +240,6 @@ export default function Registration() {
     const person = sandboxDatabase.find((p) => p.name === selectedPersona);
     if (!person) return;
 
-    setVerifying(true);
     setVerifyStage("scanning");
 
     // Step 1: Create a verification session
@@ -274,8 +265,7 @@ export default function Registration() {
     await new Promise((r) => setTimeout(r, 1000));
     setVerifyStage("done");
     setVerifiedPerson({ name: person.name, age: person.age });
-    setVerifying(false);
-    pushActivity(`Identity verified via Stripe Identity (age ${person.age})`, "ID", "bg-cyan-600");
+        pushActivity(`Identity verified via Stripe Identity (age ${person.age})`, "ID", "bg-cyan-600");
   }
 
   const [registering, setRegistering] = useState(false);
