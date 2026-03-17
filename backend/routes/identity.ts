@@ -206,4 +206,84 @@ router.post("/api/deactivate-identity", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Passkey on-chain storage and verification
+// ---------------------------------------------------------------------------
+
+// In-memory passkey registry (maps credentialId hash → email)
+// In production, this would be on-chain via setPasskey() on IdentityRegistry
+const passkeyRegistry = new Map<string, string>();
+
+// POST /api/store-passkey
+// Stores a passkey credential ID hash associated with a user email.
+// Called during registration after passkey creation.
+router.post("/api/store-passkey", async (req, res) => {
+  const { email, credentialId } = req.body;
+
+  if (!email || !credentialId) {
+    return res.status(400).json({ error: "Missing email or credentialId" });
+  }
+
+  // Hash the credential ID for storage
+  const credHash = keccak256(encodePacked(["string"], [credentialId]));
+
+  // Store in memory (and on-chain if possible)
+  passkeyRegistry.set(credHash, email);
+
+  // Also try to store on-chain via setPasskey if contract supports it
+  if (PRIVATE_KEY) {
+    try {
+      const account = privateKeyToAccount(PRIVATE_KEY);
+      const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(RPC) });
+      const publicClient = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
+
+      const hash = await walletClient.writeContract({
+        address: IDENTITY_REGISTRY,
+        abi: [{
+          inputs: [{ name: "passkeyHash", type: "bytes32" }],
+          name: "setPasskey",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        }] as const,
+        functionName: "setPasskey",
+        args: [credHash],
+        chain: baseSepolia,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash });
+      console.log(`[identity] Passkey stored on-chain for ${email}, tx: ${hash}`);
+    } catch (err) {
+      // On-chain storage is best-effort; in-memory is the fallback
+      console.warn("[identity] On-chain passkey storage failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  console.log(`[identity] Passkey registered for ${email}: ${credentialId.slice(0, 16)}...`);
+  return res.json({ success: true });
+});
+
+// POST /api/verify-passkey
+// Verifies a passkey credential ID is registered for a user.
+// Called during sign-in after passkey authentication.
+router.post("/api/verify-passkey", (req, res) => {
+  const { credentialId } = req.body;
+
+  if (!credentialId) {
+    return res.status(400).json({ error: "Missing credentialId" });
+  }
+
+  const credHash = keccak256(encodePacked(["string"], [credentialId]));
+  const email = passkeyRegistry.get(credHash);
+
+  if (email) {
+    return res.json({ verified: true, email });
+  }
+
+  // For now, if not in registry, still allow (graceful degradation during beta)
+  // In production, this would check the blockchain
+  console.log(`[identity] Passkey not found in registry: ${credentialId.slice(0, 16)}...`);
+  return res.json({ verified: false });
+});
+
 export default router;

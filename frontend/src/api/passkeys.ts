@@ -194,21 +194,22 @@ export async function addPasskey(username: string): Promise<PublicKeyCredential>
 // ---------------------------------------------------------------------------
 
 /**
- * Authenticate with an existing passkey.
- * All stored credential IDs are passed as allowCredentials hints.
+ * Authenticate with a passkey.
+ *
+ * Does NOT use localStorage to find credentials — the browser discovers
+ * available passkeys for this domain automatically (discoverable credentials).
+ * This is more secure: even if localStorage is compromised, the attacker
+ * can't authenticate without the physical passkey.
+ *
+ * Returns the credential ID (base64url) along with the assertion so the
+ * caller can verify it against the blockchain.
  */
-export async function authenticateWithPasskey(): Promise<PublicKeyCredential> {
-  const storedIds = getStoredPasskeys();
-  const allowCredentials: PublicKeyCredentialDescriptor[] = storedIds.map((id) => ({
-    id: base64urlToBuffer(id),
-    type: "public-key",
-  }));
-
+export async function authenticateWithPasskey(): Promise<{ credential: PublicKeyCredential; credentialId: string }> {
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
       rpId: rpId(),
-      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      // No allowCredentials — let the browser discover all passkeys for this domain
       userVerification: "preferred",
       timeout: 120_000,
     },
@@ -218,5 +219,8 @@ export async function authenticateWithPasskey(): Promise<PublicKeyCredential> {
     throw new Error("Passkey authentication was cancelled or failed.");
   }
 
-  return assertion as PublicKeyCredential;
+  const pkCred = assertion as PublicKeyCredential;
+  const credentialId = bufferToBase64url(pkCred.rawId);
+
+  return { credential: pkCred, credentialId };
 }

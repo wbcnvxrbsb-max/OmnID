@@ -282,7 +282,11 @@ function PasskeyLock({ onUnlock }: { onUnlock: () => void }) {
 }
 
 function App() {
-  const [unlocked, setUnlocked] = useState(() => !hasPasskey());
+  // Show lock screen if user has registered before (has passkey data or registration flag)
+  const [unlocked, setUnlocked] = useState(() => {
+    const hasRegistered = hasPasskey() || localStorage.getItem("omnid-registration-complete") === "true";
+    return !hasRegistered;
+  });
 
   // Migrate plaintext wallet mnemonic to encrypted storage on app load
   useEffect(() => {
@@ -291,10 +295,10 @@ function App() {
     }
   }, [unlocked]);
 
-  // If unlocked but not fully registered/signed in, redirect to register
+  // If unlocked but no Google user, redirect to register
+  // (Google user existing = at minimum signed in; registration-complete flag is for new users)
   const googleUser = getGoogleUser();
-  const registrationComplete = localStorage.getItem("omnid-registration-complete") === "true";
-  const needsSignIn = unlocked && (!googleUser || !registrationComplete);
+  const needsSignIn = unlocked && !googleUser;
 
   // Auto-lock after 15 minutes of inactivity (only fires when unlocked)
   const handleSessionTimeout = useCallback(() => {

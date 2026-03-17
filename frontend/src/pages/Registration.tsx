@@ -154,15 +154,23 @@ export default function Registration() {
         setPasskeyError("");
         try {
           const username = googleUser?.name || googleUser?.email || "OmnID User";
-          await createPasskey(username);
-          const storedId = localStorage.getItem("omnid-passkeys") ?? localStorage.getItem("omnid-passkey") ?? "";
+          const cred = await createPasskey(username);
+          const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
           setPasskeyRegistered(true);
-          setPasskeyCredentialId(storedId);
+          setPasskeyCredentialId(credId);
           setPasskeyType("webauthn");
           if (!linkedProviders.includes("passkey")) {
             setLinkedProviders((prev) => [...prev, "passkey"]);
           }
           pushActivity("Passkey registered via WebAuthn", "PK", "bg-purple-600");
+          // Store passkey hash on-chain (fire-and-forget)
+          if (googleUser?.email) {
+            fetch(`${API_BASE}/api/store-passkey`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: googleUser.email, credentialId: credId }),
+            }).catch(() => {});
+          }
         } catch (e: any) {
           setPasskeyError(e?.message ?? "Failed to create passkey. Please try again.");
         } finally {
@@ -676,15 +684,23 @@ export default function Registration() {
                   setPasskeyError("");
                   try {
                     const username = googleUser?.name || googleUser?.email || "OmnID User";
-                    await createPasskey(username);
-                    const storedId = localStorage.getItem("omnid-passkeys") ?? localStorage.getItem("omnid-passkey") ?? "";
+                    const cred = await createPasskey(username);
+                    const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
                     setPasskeyRegistered(true);
-                    setPasskeyCredentialId(storedId);
+                    setPasskeyCredentialId(credId);
                     setPasskeyType("webauthn");
                     if (!linkedProviders.includes("passkey")) {
                       setLinkedProviders((prev) => [...prev, "passkey"]);
                     }
                     pushActivity("Passkey registered via WebAuthn", "PK", "bg-purple-600");
+                    // Store passkey hash on-chain
+                    if (googleUser?.email) {
+                      fetch(`${API_BASE}/api/store-passkey`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: googleUser.email, credentialId: credId }),
+                      }).catch(() => {});
+                    }
                   } catch (e: any) {
                     setPasskeyError(e?.message ?? "Failed to create passkey. Please try again.");
                   } finally {
