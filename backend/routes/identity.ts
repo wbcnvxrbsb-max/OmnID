@@ -121,6 +121,93 @@ router.post("/api/register-identity", async (req, res) => {
   }
 });
 
+// POST /api/create-verification-session
+// Creates a Stripe Identity verification session (simulated for demo)
+router.post("/api/create-verification-session", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Missing email" });
+
+  // In production: create a real Stripe Identity session
+  // stripe.identity.verificationSessions.create({ type: "document", ... })
+  // For now: simulate with a demo session
+  const sessionId = `vs_demo_${Date.now()}`;
+  console.log(`[identity] Verification session created for ${email}: ${sessionId}`);
+
+  return res.json({
+    sessionId,
+    // In production this would be a Stripe-hosted URL
+    // For demo, we simulate the flow client-side
+    demo: true,
+  });
+});
+
+// POST /api/verify-identity
+// Called after Stripe Identity completes verification
+router.post("/api/verify-identity", async (req, res) => {
+  const { email, sessionId, verificationResult } = req.body;
+  if (!email || !sessionId) return res.status(400).json({ error: "Missing required fields" });
+
+  // In production: retrieve the Stripe verification session result
+  // const session = await stripe.identity.verificationSessions.retrieve(sessionId);
+  // const verified = session.status === "verified";
+
+  // For demo: accept the simulated result
+  const verified = verificationResult?.verified ?? true;
+  const verifiedAge = verificationResult?.age;
+  const verifiedName = verificationResult?.name;
+
+  if (!verified) {
+    return res.json({ success: false, error: "Verification failed" });
+  }
+
+  if (!PRIVATE_KEY) {
+    console.log(`[identity] Verification confirmed for ${email} (no key configured)`);
+    return res.json({ success: true, verified: true, verifiedName, verifiedAge });
+  }
+
+  // Write "Verified" hash to blockchain
+  // Hash: keccak256("stripe-identity-verified:" + email + ":" + sessionId)
+  // This proves the user was verified by Stripe, without storing ANY personal data
+  try {
+    const account = privateKeyToAccount(PRIVATE_KEY);
+    const publicClient = createPublicClient({ chain: baseSepolia, transport: http(RPC) });
+    const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(RPC) });
+
+    const verificationHash = keccak256(encodePacked(
+      ["string", "string", "string"],
+      ["stripe-identity-verified:", email, sessionId]
+    ));
+
+    // Use the same createIdentity but with the verification hash instead of SSN
+    const metadataHash = keccak256(encodePacked(["string", "string"], [verifiedName || "Verified User", email]));
+
+    const hash = await walletClient.writeContract({
+      address: IDENTITY_REGISTRY,
+      abi: IDENTITY_ABI,
+      functionName: "createIdentity",
+      args: [metadataHash, account.address, verificationHash],
+      chain: baseSepolia,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    return res.json({
+      success: true,
+      verified: true,
+      txHash: hash,
+      verifiedName,
+      verifiedAge,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    if (message.includes("already") || message.includes("Identity exists")) {
+      return res.json({ success: true, verified: true, alreadyRegistered: true });
+    }
+    console.error("Verification on-chain error:", message);
+    return res.status(500).json({ error: "Blockchain registration failed" });
+  }
+});
+
 // Minimal ABI for linkAccount
 const LINK_ACCOUNT_ABI = [
   {

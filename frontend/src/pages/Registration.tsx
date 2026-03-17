@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { lookupSSN, sandboxDatabase } from "../data/sandbox-ssn";
+import { sandboxDatabase } from "../data/sandbox-ssn";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { isGoogleConfigured, googleSignIn, getGoogleUser, clearGoogleUser, detectPlatforms, getDetectedPlatforms, type GoogleUser, type DetectedPlatform } from "../google-auth";
 import { pushActivity } from "../activity";
 import { setupRecaptcha, sendVerificationCode, verifyCode, cleanupRecaptcha } from "../api/firebase";
 import { isPasskeySupported, createPasskey, hasPasskey, clearPasskey } from "../api/passkeys";
 import { API_BASE } from "../api/config";
-import { keccak256, toHex } from "viem";
 
 type Step = "consent" | "oauth" | "passkey" | "phone" | "ssn" | "complete";
 
@@ -41,9 +40,10 @@ export default function Registration() {
   const [passkeyType, setPasskeyType] = usePersistedState<string | null>("reg-passkey", null);
   const [phone, setPhone] = usePersistedState("reg-phone", "");
   const [phoneVerified, setPhoneVerified] = usePersistedState("reg-phone-verified", false);
-  const [ssn, setSsn] = useState("");
-  const [ssnError, setSsnError] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [verifyStage, setVerifyStage] = useState<"idle" | "scanning" | "verifying" | "done">("idle");
+  const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
+  const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
   const [verifiedPerson, setVerifiedPerson] = usePersistedState<{
     name: string;
     age: number;
@@ -62,7 +62,6 @@ export default function Registration() {
   const [otpError, setOtpError] = useState("");
   const [otpSending, setOtpSending] = useState(false);
   const [, setRecaptchaReady] = useState(false);
-  const [usedSSNs, setUsedSSNs] = usePersistedState<string[]>("reg-used-ssns", []);
   const [googleUser, setGoogleUser] = usePersistedState<GoogleUser | null>("google-user", getGoogleUser());
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState("");
@@ -243,76 +242,66 @@ export default function Registration() {
     }
   }
 
-  const [ssnPerson, setSsnPerson] = useState<{ name: string; age: number; birthdate: string } | null>(null);
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
-  // Compute age mismatch between Google birthday and SSN birthdate
-  const googleBirthday = googleUser?.birthday ?? null; // "YYYY-MM-DD" or "MM-DD"
-  const ssnBirthdate = ssnPerson?.birthdate ?? null;
-  const ageMatch = (() => {
-    if (!googleBirthday || !ssnBirthdate) return null; // can't compare
-    // Google might be "YYYY-MM-DD" or just "MM-DD"
-    const gParts = googleBirthday.split("-");
-    const sParts = ssnBirthdate.split("-");
-    if (gParts.length === 3 && sParts.length === 3) {
-      // Full dates — compare
-      return googleBirthday === ssnBirthdate;
-    }
-    // Partial — compare month/day only
-    const gMonthDay = gParts.slice(-2).join("-");
-    const sMonthDay = sParts.slice(-2).join("-");
-    return gMonthDay === sMonthDay;
-  })();
-
-  function handleVerifySSN() {
-    setSsnError("");
-    const formatted = formatSSN(ssn);
-    const person = lookupSSN(formatted);
-    if (!person) {
-      setSsnError(
-        "SSN not found in sandbox database. Try one of the test SSNs below."
-      );
-      return;
-    }
-    if (usedSSNs.includes(formatted)) {
-      setSsnError("This SSN has already been registered with OmnID.");
-      return;
-    }
+  async function handleStripeVerify() {
+    if (!selectedPersona) return;
+    const person = sandboxDatabase.find((p) => p.name === selectedPersona);
+    if (!person) return;
 
     setVerifying(true);
-    setTimeout(() => {
-      setUsedSSNs((prev) => [...prev, formatted]);
-      setSsnPerson({ name: person.name, age: person.age, birthdate: person.birthdate });
-      setVerifiedPerson({ name: person.name, age: person.age });
-      setVerifying(false);
-      pushActivity(`Identity verified (age ${person.age})`, "ID", "bg-cyan-600");
-    }, 1500);
+    setVerifyStage("scanning");
+
+    // Step 1: Create a verification session
+    const email = googleUser?.email ?? "";
+    try {
+      const sessionRes = await fetch(`${API_BASE}/api/create-verification-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const sessionData = await sessionRes.json();
+      setStripeSessionId(sessionData.sessionId);
+    } catch {
+      // Even if backend is unavailable, continue with demo flow
+      setStripeSessionId(`vs_demo_${Date.now()}`);
+    }
+
+    // Step 2: Simulate "Scanning ID..." (1.5s)
+    await new Promise((r) => setTimeout(r, 1500));
+    setVerifyStage("verifying");
+
+    // Step 3: Simulate "Verifying with Stripe Identity..." (1s)
+    await new Promise((r) => setTimeout(r, 1000));
+    setVerifyStage("done");
+    setVerifiedPerson({ name: person.name, age: person.age });
+    setVerifying(false);
+    pushActivity(`Identity verified via Stripe Identity (age ${person.age})`, "ID", "bg-cyan-600");
   }
 
   const [registering, setRegistering] = useState(false);
   const [chainError, setChainError] = useState("");
 
   async function handleConfirmAge() {
-    setAgeConfirmed(true);
     setRegistering(true);
     setChainError("");
 
     try {
       const email = googleUser?.email ?? "";
-      const name = verifiedPerson?.name ?? googleUser?.name ?? "";
-      // Hash SSN client-side — raw SSN never leaves the browser
-      const ssnDigits = ssn.replace(/\D/g, "");
-      const ssnHash = keccak256(toHex(ssnDigits));
+      const sessionId = stripeSessionId ?? `vs_demo_${Date.now()}`;
 
-      const res = await fetch(`${API_BASE}/api/register-identity`, {
+      const res = await fetch(`${API_BASE}/api/verify-identity`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, ssnHash }),
+        body: JSON.stringify({
+          email,
+          sessionId,
+          verificationResult: {
+            verified: true,
+            name: verifiedPerson?.name,
+            age: verifiedPerson?.age,
+          },
+        }),
       });
-
-      // Clear SSN from state after sending hash
-      setSsn("");
-      setSsnPerson(null);
 
       const data = await res.json();
       if (data.success) {
@@ -396,7 +385,7 @@ export default function Registration() {
               <h3 className="text-sm font-semibold text-omn-heading mb-2">Identity</h3>
               <ul className="space-y-1.5 text-sm text-omn-text">
                 <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Name, email, and birthday (from Google sign-in)</li>
-                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>SSN hash (your raw SSN is never stored)</li>
+                <li className="flex items-start gap-2"><span className="text-omn-primary mt-0.5">*</span>Government ID verification via Stripe Identity (we never see or store your documents)</li>
               </ul>
             </div>
 
@@ -432,7 +421,7 @@ export default function Registration() {
           <div className="bg-red-900/10 border border-red-700/20 rounded-lg p-4 mb-6">
             <h3 className="text-sm font-semibold text-omn-danger mb-2">What OmnID Never Does</h3>
             <ul className="space-y-1.5 text-sm text-omn-text">
-              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never stores your raw SSN</li>
+              <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never sees or stores your identity documents</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never sells data to third parties</li>
               <li className="flex items-start gap-2"><span className="text-omn-danger mt-0.5">x</span>Never shares personal info without your explicit consent</li>
             </ul>
@@ -873,37 +862,28 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Step 4: SSN + Age Verification (Required) */}
+      {/* Step 4: Stripe Identity Verification (Required) */}
       {currentStep === "ssn" && (
         <div className="space-y-6">
-          {/* Privacy Notice */}
+          {/* How it works */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-omn-success mb-1">On-Chain (Public)</h3>
-              <p className="text-[10px] text-omn-text mb-3">Stored on the blockchain</p>
-              <ul className="space-y-2 text-sm text-omn-text">
-                <li className="flex items-center gap-2"><span className="text-omn-success">+</span>Decentralized Identifier (DID)</li>
-                <li className="flex items-center gap-2"><span className="text-omn-success">+</span>Verification proof hash</li>
-                <li className="flex items-center gap-2"><span className="text-omn-success">+</span>Verification timestamp</li>
-              </ul>
-            </div>
             <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-omn-primary mb-1">Off-Chain (Private Vault)</h3>
-              <p className="text-[10px] text-omn-text mb-3">Encrypted on your device only</p>
-              <ul className="space-y-2 text-sm text-omn-text">
-                <li className="flex items-center gap-2"><span className="text-omn-primary">~</span>SSN (encrypted, device only)</li>
-                <li className="flex items-center gap-2"><span className="text-omn-primary">~</span>Full name and address</li>
-                <li className="flex items-center gap-2"><span className="text-omn-primary">~</span>Date of birth</li>
-              </ul>
+              <h3 className="text-sm font-semibold text-omn-primary mb-1">You scan your ID</h3>
+              <p className="text-xs text-omn-text mt-2">
+                Take a photo of your government ID (driver's license, passport, etc.)
+              </p>
             </div>
-            <div className="bg-red-900/20 border border-red-700/30 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-omn-danger mb-1">Never Shared</h3>
-              <p className="text-[10px] text-omn-text mb-3">Zero-Knowledge Proofs verify without revealing</p>
-              <ul className="space-y-2 text-sm text-omn-text">
-                <li className="flex items-center gap-2"><span className="text-omn-danger">x</span>Raw SSN (never on blockchain)</li>
-                <li className="flex items-center gap-2"><span className="text-omn-danger">x</span>Your birthday (only "over 21")</li>
-                <li className="flex items-center gap-2"><span className="text-omn-danger">x</span>Your address</li>
-              </ul>
+            <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-omn-success mb-1">Stripe verifies it</h3>
+              <p className="text-xs text-omn-text mt-2">
+                Stripe Identity, a product by a multi-billion dollar payment company, processes and verifies your documents
+              </p>
+            </div>
+            <div className="bg-purple-900/20 border border-purple-700/30 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-purple-400 mb-1">We store a hash</h3>
+              <p className="text-xs text-omn-text mt-2">
+                OmnID only receives a "Verified" result. A verification hash is written to the blockchain. Your actual ID data stays with Stripe.
+              </p>
             </div>
           </div>
 
@@ -913,124 +893,94 @@ export default function Registration() {
               <span className="text-xs px-2 py-0.5 bg-omn-accent/20 rounded-full text-omn-accent">Required</span>
             </div>
             <p className="text-sm text-omn-text mb-1">
-              Enter your SSN to verify your identity using Zero-Knowledge Proofs.
+              OmnID uses Stripe Identity to verify your identity. We never see or store your personal documents — Stripe handles everything.
             </p>
             <p className="text-xs text-omn-accent mb-6">
-              Your SSN is stored in your encrypted off-chain vault (your device only). A Zero-Knowledge Proof is generated to verify facts like "over 21" without ever revealing the raw SSN. Only a cryptographic hash is stored on-chain — fully GDPR-compliant.
+              OmnID is the "highway," not the "database." Only a cryptographic verification hash is stored on-chain — fully GDPR-compliant.
             </p>
 
-            {!verifying && (
-              <div>
-                <label className="block text-sm text-omn-text mb-2">
-                  Social Security Number (use a test SSN below)
-                </label>
-                <div className="flex gap-3 mb-4">
-                  <input
-                    type="text"
-                    value={ssn}
-                    onChange={(e) => {
-                      setSsn(formatSSN(e.target.value));
-                      setSsnError("");
-                    }}
-                    placeholder="123-45-6789"
-                    maxLength={11}
-                    className="flex-1 px-4 py-2 bg-omn-bg border border-omn-border rounded-lg text-omn-heading font-mono focus:border-omn-primary focus:outline-none"
-                  />
-                  <button
-                    onClick={handleVerifySSN}
-                    disabled={ssn.replace(/\D/g, "").length < 9}
-                    className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Verify
-                  </button>
-                </div>
-                {ssnError && <p className="text-sm text-omn-danger mb-4">{ssnError}</p>}
+            {/* Demo mode badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-omn-accent/10 border border-omn-accent/30 rounded-full mb-6">
+              <span className="w-2 h-2 bg-omn-accent rounded-full animate-pulse" />
+              <span className="text-xs font-medium text-omn-accent">Demo Mode: Simulated Verification</span>
+            </div>
 
-                {/* Sandbox SSN List */}
-                <div className="border-t border-omn-border pt-4 mt-4">
-                  <p className="text-xs text-omn-text mb-3">Sandbox test SSNs (click to auto-fill):</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {sandboxDatabase.map((person) => (
-                      <button
-                        key={person.ssn}
-                        onClick={() => { setSsn(person.ssn); setSsnError(""); }}
-                        className="text-left p-3 bg-omn-bg border border-omn-border rounded-lg hover:border-omn-primary transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm text-omn-accent">{person.ssn}</span>
-                          <span className="text-xs text-omn-text">Age: {person.age}</span>
-                        </div>
-                        <p className="text-sm text-omn-heading mt-1">{person.name}</p>
-                      </button>
-                    ))}
-                  </div>
+            {/* Persona selection — before verification starts */}
+            {verifyStage === "idle" && (
+              <div>
+                <label className="block text-sm text-omn-text mb-3">
+                  Select a test persona to simulate ID verification:
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                  {sandboxDatabase.map((person) => (
+                    <button
+                      key={person.name}
+                      onClick={() => setSelectedPersona(person.name)}
+                      className={`text-left p-3 rounded-lg border transition-all ${
+                        selectedPersona === person.name
+                          ? "border-omn-primary bg-omn-primary/10"
+                          : "border-omn-border bg-omn-bg hover:border-omn-primary"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-omn-heading">{person.name}</span>
+                        <span className="text-xs text-omn-text">Age: {person.age}</span>
+                      </div>
+                      <p className="text-xs text-omn-text mt-1">{person.city}, {person.state}</p>
+                    </button>
+                  ))}
                 </div>
+
+                <button
+                  onClick={handleStripeVerify}
+                  disabled={!selectedPersona}
+                  className="px-6 py-2 bg-omn-primary hover:bg-omn-primary-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Verify with Stripe Identity
+                </button>
               </div>
             )}
 
-            {verifying && (
+            {/* Scanning stage */}
+            {verifyStage === "scanning" && (
               <div className="text-center py-8">
                 <div className="animate-spin w-8 h-8 border-2 border-omn-primary border-t-transparent rounded-full mx-auto mb-3" />
-                <p className="text-omn-text">Generating Zero-Knowledge Proof... (SSN stays in your off-chain vault)</p>
+                <p className="text-omn-heading font-medium">Scanning ID...</p>
+                <p className="text-xs text-omn-text mt-1">Reading document information</p>
               </div>
             )}
 
-            {/* Age Comparison — shown after SSN is verified */}
-            {ssnPerson && !verifying && !ageConfirmed && (
-              <div className="mt-6 border-t border-omn-border pt-6">
-                <h3 className="text-sm font-semibold text-omn-heading mb-4">Age Verification Result</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  {/* SSN Source */}
-                  <div className="bg-omn-bg border border-omn-border rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 bg-omn-primary/20 rounded flex items-center justify-center text-omn-primary text-[10px] font-bold">ID</div>
-                      <span className="text-xs font-medium text-omn-heading">SSN Verification</span>
+            {/* Verifying stage */}
+            {verifyStage === "verifying" && (
+              <div className="text-center py-8">
+                <div className="animate-spin w-8 h-8 border-2 border-omn-success border-t-transparent rounded-full mx-auto mb-3" />
+                <p className="text-omn-heading font-medium">Verifying with Stripe Identity...</p>
+                <p className="text-xs text-omn-text mt-1">Stripe is processing your document</p>
+              </div>
+            )}
+
+            {/* Verification complete */}
+            {verifyStage === "done" && verifiedPerson && (
+              <div className="space-y-4">
+                <div className="bg-omn-success/10 border border-omn-success/30 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-omn-success text-2xl">{"\u2713"}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-omn-success">Identity Verified</p>
+                      <p className="text-xs text-omn-text mt-0.5">Verified by Stripe Identity</p>
                     </div>
-                    <p className="text-sm text-omn-heading font-medium">{ssnPerson.name}</p>
-                    <p className="text-xs text-omn-text mt-1">Birthday: <span className="text-omn-heading font-mono">{ssnPerson.birthdate}</span></p>
-                    <p className="text-xs text-omn-text">Age: <span className="text-omn-heading font-bold">{ssnPerson.age}</span></p>
                   </div>
-                  {/* Google Source */}
-                  <div className="bg-omn-bg border border-omn-border rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 bg-blue-600/20 rounded flex items-center justify-center text-blue-400 text-[10px] font-bold">GO</div>
-                      <span className="text-xs font-medium text-omn-heading">Google Account</span>
-                    </div>
-                    <p className="text-sm text-omn-heading font-medium">{googleUser?.name ?? "Not signed in"}</p>
-                    {googleBirthday ? (
-                      <>
-                        <p className="text-xs text-omn-text mt-1">Birthday: <span className="text-omn-heading font-mono">{googleBirthday}</span></p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-omn-text mt-1 italic">No birthday on file</p>
-                    )}
+                  <div className="ml-9 space-y-1">
+                    <p className="text-sm text-omn-heading">Name: <span className="font-medium">{verifiedPerson.name}</span></p>
+                    <p className="text-sm text-omn-heading">Age: <span className="font-medium">{verifiedPerson.age}</span></p>
                   </div>
                 </div>
 
-                {/* Match / Mismatch indicator */}
-                {ageMatch !== null && (
-                  <div className={`rounded-lg p-3 mb-4 ${ageMatch ? "bg-omn-success/10 border border-omn-success/30" : "bg-omn-accent/10 border border-omn-accent/30"}`}>
-                    {ageMatch ? (
-                      <p className="text-sm text-omn-success font-medium">Birthdays match across both sources.</p>
-                    ) : (
-                      <div>
-                        <p className="text-sm text-omn-accent font-medium">Birthdays don't match.</p>
-                        <p className="text-xs text-omn-text mt-1">
-                          Defaulting to SSN-verified age (<span className="font-bold text-omn-heading">{ssnPerson.age}</span>) as the authoritative source,
-                          since government records take priority over self-reported data.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {ageMatch === null && googleBirthday === null && (
-                  <div className="bg-omn-surface border border-omn-border rounded-lg p-3 mb-4">
-                    <p className="text-xs text-omn-text">
-                      No Google birthday to compare. Using SSN-verified age: <span className="font-bold text-omn-heading">{ssnPerson.age}</span>
-                    </p>
-                  </div>
-                )}
+                <div className="bg-omn-bg border border-omn-border rounded-lg p-3">
+                  <p className="text-xs text-omn-text">
+                    In production, you would scan a real ID using Stripe Identity's document scanner. OmnID never sees your documents — only the verification result.
+                  </p>
+                </div>
 
                 <button
                   onClick={handleConfirmAge}
@@ -1045,7 +995,7 @@ export default function Registration() {
               </div>
             )}
 
-            {!verifying && !ssnPerson && (
+            {verifyStage === "idle" && (
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setCurrentStep("phone")} className="px-4 py-2 bg-omn-surface border border-omn-border rounded-lg text-sm text-omn-text hover:text-omn-heading transition-colors">Back</button>
               </div>
